@@ -154,6 +154,24 @@ jobs:
           name: evidence-schemas-verbatim-proof
           path: evidence-schemas-verbatim-proof.json
 
+  # WORM no-mutate proof (Sprint-2 / EDAM-T105): Domain-B evidence writer +
+  # the WormWriter policy contain no delete/overwrite/retention/key-read path.
+  worm-no-mutate-proof:
+    name: worm-no-mutate-proof (INV-EV-1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
+      - name: Assert no WORM-mutation path (+ emit proof)
+        run: npm run worm-no-mutate-proof -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worm-no-mutate-proof
+          path: worm-no-mutate-proof.json
+
   # Masking & secret-hygiene proof (Epic E8 / EDAM-T053).
   secret-hygiene:
     name: secret-hygiene (INV-2/PII)

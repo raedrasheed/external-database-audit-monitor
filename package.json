@@ -28,6 +28,7 @@
     "conformance": "tsx conformance/scripts/conformance-report.ts",
     "no-write-proof": "tsx conformance/scripts/no-write-proof.ts",
     "evidence-schemas-verbatim": "tsx conformance/scripts/evidence-schemas-verbatim.ts",
+    "worm-no-mutate-proof": "tsx conformance/scripts/worm-no-mutate-proof.ts",
     "secret-hygiene": "tsx conformance/scripts/secret-hygiene.ts",
     "invariants": "tsx conformance/scripts/invariant-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
