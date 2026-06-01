@@ -13,8 +13,8 @@ describe('uuidv5', () => {
   it('is deterministic and sets version 5 + RFC 4122 variant', () => {
     const u = uuidv5('edam', DNS_NAMESPACE);
     expect(u).toBe(uuidv5('edam', DNS_NAMESPACE));
-    expect(u[14]).toBe('5'); // version nibble
-    expect(['8', '9', 'a', 'b']).toContain(u[19].toLowerCase()); // variant nibble
+    expect(u.charAt(14)).toBe('5'); // version nibble
+    expect(['8', '9', 'a', 'b']).toContain(u.charAt(19).toLowerCase()); // variant nibble
   });
 });
 
