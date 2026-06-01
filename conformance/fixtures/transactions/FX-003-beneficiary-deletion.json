@@ -1,36 +1,78 @@
 {
   "fixture_id": "FX-003-beneficiary-deletion",
-  "description": "DELETE removes a beneficiary holding an active balance; sensitive fields masked (CCE Appendix C.3).",
-  "conformance_refs": ["C-3", "C-7"],
-  "source": {
-    "db_id": "kafel-dev-mysql",
-    "engine": "mysql",
-    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
-    "schema": "kafel"
-  },
-  "transaction": {
-    "tx_id": "00000000-0000-0000-0000-0000000000aa:3",
-    "commit_ts": "2026-06-01T11:05:10.500Z"
-  },
-  "input_sql": [
-    "DELETE FROM kafel.beneficiaries WHERE id = 5567;"
+  "description": "DELETE removes a beneficiary holding a balance; sensitive fields masked (CCE Appendix C.3).",
+  "conformance_refs": [
+    "C-3"
   ],
-  "expected": {
-    "operation": "DELETE",
-    "object": { "schema": "kafel", "name": "beneficiaries", "primary_key": { "id": 5567 } },
-    "before": { "id": 5567, "name": "***", "national_id": "***", "balance": "1320.00", "status": "active" },
-    "after": null,
-    "field_changes": [
-      { "path": ["name"], "old": "***", "new": null, "data_type": "string", "changed": true, "sensitive": true, "masked": true },
-      { "path": ["national_id"], "old": "***", "new": null, "data_type": "string", "changed": true, "sensitive": true, "masked": true },
-      { "path": ["balance"], "old": "1320.00", "new": null, "data_type": "decimal", "changed": true, "sensitive": false },
-      { "path": ["status"], "old": "active", "new": null, "data_type": "string", "changed": true, "sensitive": false }
+  "sensitive_fields": [
+    "kafel.beneficiaries.name",
+    "kafel.beneficiaries.national_id"
+  ],
+  "input": {
+    "source": {
+      "db_id": "kafel-dev-mysql",
+      "engine": "mysql",
+      "server_uuid": "3e11fa47-71ca-11e1-9e33-c80aa9429562",
+      "schema": "kafel"
+    },
+    "transaction": {
+      "tx_id": "3e11fa47-71ca-11e1-9e33-c80aa9429562:154",
+      "commit_ts": "2026-06-01T11:05:10.000Z",
+      "ingest_ts": "2026-06-01T11:05:10.000Z"
+    },
+    "offset": {
+      "gtid": "3e11fa47-71ca-11e1-9e33-c80aa9429562:154",
+      "binlog_file": "mysql-bin.000042",
+      "binlog_pos": 1154,
+      "lsn": null,
+      "scn": null,
+      "resume_token": null
+    },
+    "fidelity": {
+      "state": "HEALTHY",
+      "source_config": {
+        "binlog_format": "ROW",
+        "binlog_row_image": "FULL",
+        "gtid_mode": "ON",
+        "replica_identity": null,
+        "log_bin": "ON",
+        "config_snapshot_id": "cfg-fixture"
+      }
+    },
+    "completeness": {
+      "consumed_offset_key": "3e11fa47-71ca-11e1-9e33-c80aa9429562:154",
+      "gap_detected": false,
+      "snapshot_phase": "streaming"
+    },
+    "actor": {
+      "attribution_confidence": "unattributed"
+    },
+    "changes": [
+      {
+        "operation": "DELETE",
+        "object": {
+          "schema": "kafel",
+          "name": "beneficiaries",
+          "primary_key": {
+            "id": 5567
+          }
+        },
+        "before": {
+          "id": 5567,
+          "name": "Aid Recipient A",
+          "national_id": "2011223344",
+          "balance": "1320.00",
+          "status": "active"
+        },
+        "after": null
+      }
     ]
   },
   "golden": {
-    "status": "PENDING_CANONICAL",
+    "status": "PINNED",
     "schema_version": "cce-1.0",
-    "envelope_id": null,
-    "event_hash": null
+    "envelope_id": "2d9d7949-0b46-5992-9f34-c6b3203e0271",
+    "event_hash": "sha256:a7bda4a3cf17408c1765239fd627b83c322c3382435d5e7ebeba1edcfbf30331",
+    "row_hash": "sha256:7e182a7c083c4be49a09ff5159f45cede5e3071e2d17ad2383bae65803a78a6b"
   }
 }

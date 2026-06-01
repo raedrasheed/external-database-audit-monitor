@@ -6,5 +6,9 @@
   "description": "EDAM conformance fixtures and harness (EDAM-T050)",
   "scripts": {
     "pin": "tsx scripts/pin-golden-values.ts"
+  },
+  "dependencies": {
+    "@edam/cce-model": "*",
+    "@edam/canonical": "*"
   }
 }

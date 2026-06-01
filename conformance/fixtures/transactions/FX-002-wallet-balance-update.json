@@ -1,33 +1,76 @@
 {
   "fixture_id": "FX-002-wallet-balance-update",
   "description": "UPDATE directly edits a wallet balance (CCE Appendix C.2).",
-  "conformance_refs": ["C-3"],
-  "source": {
-    "db_id": "kafel-dev-mysql",
-    "engine": "mysql",
-    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
-    "schema": "kafel"
-  },
-  "transaction": {
-    "tx_id": "00000000-0000-0000-0000-0000000000aa:2",
-    "commit_ts": "2026-06-01T22:14:03.001Z"
-  },
-  "input_sql": [
-    "UPDATE kafel.wallets SET balance = 9250.00 WHERE id = 4412;"
+  "conformance_refs": [
+    "C-3"
   ],
-  "expected": {
-    "operation": "UPDATE",
-    "object": { "schema": "kafel", "name": "wallets", "primary_key": { "id": 4412 } },
-    "before": { "id": 4412, "user_id": 778, "balance": "250.00" },
-    "after": { "id": 4412, "user_id": 778, "balance": "9250.00" },
-    "field_changes": [
-      { "path": ["balance"], "old": "250.00", "new": "9250.00", "data_type": "decimal", "changed": true, "sensitive": false }
+  "input": {
+    "source": {
+      "db_id": "kafel-dev-mysql",
+      "engine": "mysql",
+      "server_uuid": "3e11fa47-71ca-11e1-9e33-c80aa9429562",
+      "schema": "kafel"
+    },
+    "transaction": {
+      "tx_id": "3e11fa47-71ca-11e1-9e33-c80aa9429562:153",
+      "commit_ts": "2026-06-01T22:14:03.000Z",
+      "ingest_ts": "2026-06-01T22:14:03.000Z"
+    },
+    "offset": {
+      "gtid": "3e11fa47-71ca-11e1-9e33-c80aa9429562:153",
+      "binlog_file": "mysql-bin.000042",
+      "binlog_pos": 1153,
+      "lsn": null,
+      "scn": null,
+      "resume_token": null
+    },
+    "fidelity": {
+      "state": "HEALTHY",
+      "source_config": {
+        "binlog_format": "ROW",
+        "binlog_row_image": "FULL",
+        "gtid_mode": "ON",
+        "replica_identity": null,
+        "log_bin": "ON",
+        "config_snapshot_id": "cfg-fixture"
+      }
+    },
+    "completeness": {
+      "consumed_offset_key": "3e11fa47-71ca-11e1-9e33-c80aa9429562:153",
+      "gap_detected": false,
+      "snapshot_phase": "streaming"
+    },
+    "actor": {
+      "attribution_confidence": "unattributed"
+    },
+    "changes": [
+      {
+        "operation": "UPDATE",
+        "object": {
+          "schema": "kafel",
+          "name": "wallets",
+          "primary_key": {
+            "id": 4412
+          }
+        },
+        "before": {
+          "id": 4412,
+          "user_id": 778,
+          "balance": "250.00"
+        },
+        "after": {
+          "id": 4412,
+          "user_id": 778,
+          "balance": "9250.00"
+        }
+      }
     ]
   },
   "golden": {
-    "status": "PENDING_CANONICAL",
+    "status": "PINNED",
     "schema_version": "cce-1.0",
-    "envelope_id": null,
-    "event_hash": null
+    "envelope_id": "b39e0f28-311b-524a-9479-e24d495b15f9",
+    "event_hash": "sha256:d8539b9303031b0d6e960485c3db23a1997e81bd01d8152683f50674518e0adc",
+    "row_hash": "sha256:2d7b2419bc218a6eb33fe1d77c701a3c3f227baabf0700fada0dc5399ee5c716"
   }
 }
