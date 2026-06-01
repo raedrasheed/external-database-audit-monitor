@@ -1,0 +1,21 @@
+{
+  "report_version": "verification-report-1.0",
+  "report_id": "9c1e7b40-2a55-4f6c-9d8e-0a1b2c3d4e5f",
+  "db_id": "kafel-dev-mysql",
+  "verifier": { "type": "independent_external", "identity": "auditor:acme-forensics" },
+  "scope": { "first_segment_sequence": 0, "last_segment_sequence": 1 },
+  "generated_at": "2026-06-01T11:00:00.000Z",
+  "overall_result": "PASS",
+  "checks": [
+    { "check": "per_object_hash", "result": "PASS" },
+    { "check": "object_chain", "result": "PASS" },
+    { "check": "segment_manifest", "result": "PASS" },
+    { "check": "cross_segment_continuity", "result": "PASS" },
+    { "check": "no_missing_segment", "result": "PASS" },
+    { "check": "no_missing_event", "result": "PASS" },
+    { "check": "hsm_signature", "result": "PASS" },
+    { "check": "anchor_token", "result": "PASS" },
+    { "check": "projection_consistency", "result": "SKIPPED", "details": "no projection supplied" }
+  ],
+  "report_signature": null
+}

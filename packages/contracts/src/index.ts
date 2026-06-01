@@ -5,6 +5,10 @@ export {
   validate,
   validateCce,
   validateSnapshotEpochManifest,
+  validateEvidenceSegmentManifest,
+  validateAnchorRecord,
+  validateVerificationReport,
+  validateEvidenceExportPackage,
   type ValidationError,
   type ValidationResult,
 } from './validator.js';

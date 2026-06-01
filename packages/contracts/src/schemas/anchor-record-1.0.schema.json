@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/anchor-record-1.0.schema.json",
+  "title": "Anchor Record v1",
+  "type": "object",
+  "required": ["anchor_version","anchor_id","db_id","head","hsm_signature","anchor_provider","created_at"],
+  "additionalProperties": false,
+  "properties": {
+    "anchor_version": { "type": "string", "const": "anchor-record-1.0" },
+    "anchor_id": { "type": "string", "format": "uuid" },
+    "db_id": { "type": "string", "minLength": 1 },
+    "head": {
+      "type": "object",
+      "required": ["segment_id","segment_sequence","segment_hash","last_row_hash","head_count","signed_at"],
+      "additionalProperties": false,
+      "properties": {
+        "segment_id": { "type": "string" },
+        "segment_sequence": { "type": "integer", "minimum": 0 },
+        "segment_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "last_row_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "head_count": { "type": "integer", "minimum": 1 },
+        "signed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "hsm_signature": {
+      "type": "object",
+      "required": ["algorithm","signing_key_id","signature"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "type": "string", "enum": ["ecdsa-p384","ed25519","rsa-pss-3072","ecdsa-p256"] },
+        "signing_key_id": { "type": "string" },
+        "signature": { "type": "string" },
+        "revoked_at": { "type": ["string","null"], "format": "date-time" }
+      }
+    },
+    "anchor_provider": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["rfc3161","transparency_log","dual_custodian"] },
+        "rfc3161_token": { "type": "string" },
+        "tsa_cert_ref": { "type": "string" },
+        "transparency_log": {
+          "type": "object",
+          "properties": {
+            "log_id": { "type": "string" },
+            "leaf_index": { "type": "integer", "minimum": 0 },
+            "inclusion_proof": { "type": "array", "items": { "type": "string" } },
+            "signed_tree_head": { "type": "string" }
+          }
+        },
+        "dual_custodian": {
+          "type": "object",
+          "properties": {
+            "custodian_id": { "type": "string" },
+            "signature": { "type": "string" },
+            "key_ref": { "type": "string" },
+            "timestamp": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "rfc3161" } } },
+          "then": { "required": ["rfc3161_token","tsa_cert_ref"] } },
+        { "if": { "properties": { "type": { "const": "transparency_log" } } },
+          "then": { "required": ["transparency_log"] } },
+        { "if": { "properties": { "type": { "const": "dual_custodian" } } },
+          "then": { "required": ["dual_custodian"] } }
+      ]
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

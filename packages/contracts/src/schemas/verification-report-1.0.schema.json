@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/verification-report-1.0.schema.json",
+  "title": "Verification Report v1",
+  "type": "object",
+  "required": ["report_version","report_id","db_id","verifier","scope","generated_at","overall_result","checks"],
+  "additionalProperties": false,
+  "properties": {
+    "report_version": { "type": "string", "const": "verification-report-1.0" },
+    "report_id": { "type": "string", "format": "uuid" },
+    "db_id": { "type": "string", "minLength": 1 },
+    "verifier": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["edam_daily","independent_external"] },
+        "identity": { "type": "string" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "required": ["first_segment_sequence","last_segment_sequence"],
+      "additionalProperties": false,
+      "properties": {
+        "first_segment_sequence": { "type": "integer", "minimum": 0 },
+        "last_segment_sequence": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "overall_result": { "type": "string", "enum": ["PASS","FAIL"] },
+    "checks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["check","result"],
+        "additionalProperties": false,
+        "properties": {
+          "check": { "type": "string", "enum": [
+            "per_object_hash","object_chain","segment_manifest","cross_segment_continuity",
+            "no_missing_segment","no_missing_event","hsm_signature","anchor_token","projection_consistency"] },
+          "result": { "type": "string", "enum": ["PASS","FAIL","SKIPPED"] },
+          "details": { "type": "string" },
+          "offending_ids": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "report_signature": { "type": ["string","null"] }
+  }
+}

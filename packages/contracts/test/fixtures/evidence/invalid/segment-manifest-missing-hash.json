@@ -1,0 +1,24 @@
+{
+  "manifest_version": "evidence-segment-manifest-1.0",
+  "segment_id": "seg-000000",
+  "db_id": "kafel-dev-mysql",
+  "engine": "mysql",
+  "segment_sequence": 0,
+  "opened_at": "2026-06-01T10:00:00.000Z",
+  "sealed_at": "2026-06-01T10:05:00.000Z",
+  "event_count": 1,
+  "first_envelope_id": "3e11fa47-71ca-11e1-9e33-c80aa9429562",
+  "last_envelope_id": "3e11fa47-71ca-11e1-9e33-c80aa9429562",
+  "first_row_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "last_row_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "object_list": [
+    { "seq": 0, "object_id": "3e11fa47-71ca-11e1-9e33-c80aa9429562", "worm_object_key": "k/seg-000000/0.cce.json", "object_type": "cce" }
+  ],
+  "object_hash_list": [
+    { "seq": 0, "event_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "row_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+  ],
+  "source_offset_range": { "first_offset_key": "x", "last_offset_key": "x" },
+  "fidelity_summary": { "all_healthy": true, "degraded_count": 0, "compromised_count": 0 },
+  "completeness_summary": { "gap_detected": false, "expected_continuous": true },
+  "previous_segment": null
+}

@@ -99,3 +99,29 @@ export function validateCce(data: unknown): ValidationResult {
 export function validateSnapshotEpochManifest(data: unknown): ValidationResult {
   return validate('snapshot-epoch-manifest-1.0', data);
 }
+
+// --- Sprint-2 evidence/WORM record validators (EDAM-T101) ---
+// Structural validation against the schemas vendored verbatim from the WORM
+// spec §16. Stateful checks (hash recomputation, chain continuity, signature /
+// anchor verification) are enforced by later Sprint-2 tasks + the conformance
+// suite, not by JSON Schema alone (WORM §16 preamble).
+
+/** Validate an Evidence Segment Manifest (WORM §16.1). */
+export function validateEvidenceSegmentManifest(data: unknown): ValidationResult {
+  return validate('evidence-segment-manifest-1.0', data);
+}
+
+/** Validate an Anchor Record (WORM §16.2). */
+export function validateAnchorRecord(data: unknown): ValidationResult {
+  return validate('anchor-record-1.0', data);
+}
+
+/** Validate a Verification Report (WORM §16.3). */
+export function validateVerificationReport(data: unknown): ValidationResult {
+  return validate('verification-report-1.0', data);
+}
+
+/** Validate an Evidence Export Package (WORM §16.4). */
+export function validateEvidenceExportPackage(data: unknown): ValidationResult {
+  return validate('evidence-export-package-1.0', data);
+}

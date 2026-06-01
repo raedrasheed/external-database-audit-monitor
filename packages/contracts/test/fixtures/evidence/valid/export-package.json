@@ -1,0 +1,37 @@
+{
+  "package_version": "evidence-export-package-1.0",
+  "package_id": "b2c4d6e8-0a1b-4c3d-8e5f-6a7b8c9d0e1f",
+  "db_id": "kafel-dev-mysql",
+  "purpose": "legal_audit",
+  "created_at": "2026-06-01T12:00:00.000Z",
+  "created_by": "custodian:evidence-domain-c",
+  "case_reference": "CASE-2026-0042",
+  "object_refs": [
+    {
+      "object_id": "3e11fa47-71ca-11e1-9e33-c80aa9429562",
+      "object_type": "cce",
+      "worm_object_key": "kafel-dev-mysql/seg-000000/000000.cce.json",
+      "event_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "segment_manifests": ["kafel-dev-mysql/seg-000000/manifest.json"],
+  "anchor_records": ["kafel-dev-mysql/seg-000000/anchor.json"],
+  "public_keys": [
+    { "key_id": "edam-evidence-key-1", "algorithm": "ed25519", "public_key": "MCowBQYDK2VwAyEAZGV2LXB1YmxpYy1rZXk=", "revoked_at": null }
+  ],
+  "timestamp_certificates": ["-----BEGIN CERTIFICATE-----dev-tsa-cert-----END CERTIFICATE-----"],
+  "verification_instructions": {
+    "spec_id": "EDAM-WORM-Evidence-Anchoring-Spec-1.0",
+    "spec_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "procedure_ref": "WORM-Spec-1.0 §10.1"
+  },
+  "chain_of_custody_log": [
+    { "event": "export_created", "at": "2026-06-01T12:00:00.000Z", "by": "custodian:evidence-domain-c", "reason": "legal audit request CASE-2026-0042" }
+  ],
+  "export_signature": {
+    "algorithm": "ed25519",
+    "signing_key_id": "edam-evidence-key-1",
+    "signature": "ZGV2LWV4cG9ydC1zaWduYXR1cmU=",
+    "package_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+  }
+}

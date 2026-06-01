@@ -1,0 +1,34 @@
+{
+  "manifest_version": "evidence-segment-manifest-1.0",
+  "segment_id": "seg-000001",
+  "db_id": "kafel-dev-mysql",
+  "engine": "mysql",
+  "segment_sequence": 1,
+  "opened_at": "2026-06-01T10:05:00.000Z",
+  "sealed_at": "2026-06-01T10:10:00.000Z",
+  "event_count": 2,
+  "first_envelope_id": "3e11fa47-71ca-11e1-9e33-c80aa9429563",
+  "last_envelope_id": "3e11fa47-71ca-11e1-9e33-c80aa9429564",
+  "first_row_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "last_row_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "object_list": [
+    { "seq": 0, "object_id": "3e11fa47-71ca-11e1-9e33-c80aa9429563", "worm_object_key": "kafel-dev-mysql/seg-000001/000000.cce.json", "object_type": "cce" },
+    { "seq": 1, "object_id": "3e11fa47-71ca-11e1-9e33-c80aa9429564", "worm_object_key": "kafel-dev-mysql/seg-000001/000001.cce.json", "object_type": "cce" }
+  ],
+  "object_hash_list": [
+    { "seq": 0, "event_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "row_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
+    { "seq": 1, "event_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "row_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" }
+  ],
+  "source_offset_range": {
+    "first_offset_key": "gtid:3e11fa47-71ca-11e1-9e33-c80aa9429562:2",
+    "last_offset_key": "gtid:3e11fa47-71ca-11e1-9e33-c80aa9429562:3"
+  },
+  "fidelity_summary": { "all_healthy": false, "degraded_count": 1, "compromised_count": 0, "reasons": ["completeness not attested"] },
+  "completeness_summary": { "gap_detected": false, "expected_continuous": true, "notes": [] },
+  "previous_segment": {
+    "segment_id": "seg-000000",
+    "segment_sequence": 0,
+    "segment_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "manifest_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+}

@@ -1,0 +1,25 @@
+{
+  "anchor_version": "anchor-record-1.0",
+  "anchor_id": "7a3f0c2e-1d4b-4a9c-8e21-9b6f0c5d2e10",
+  "db_id": "kafel-dev-mysql",
+  "head": {
+    "segment_id": "seg-000000",
+    "segment_sequence": 0,
+    "segment_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "last_row_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_count": 1,
+    "signed_at": "2026-06-01T10:05:01.000Z"
+  },
+  "hsm_signature": {
+    "algorithm": "ed25519",
+    "signing_key_id": "edam-evidence-key-1",
+    "signature": "ZGV2LXNpZ25hdHVyZS1wbGFjZWhvbGRlcg==",
+    "revoked_at": null
+  },
+  "anchor_provider": {
+    "type": "rfc3161",
+    "rfc3161_token": "MIIBdGV2LXRzYS10b2tlbg==",
+    "tsa_cert_ref": "tsa:dev-tsa-root:serial-0001"
+  },
+  "created_at": "2026-06-01T10:05:02.000Z"
+}

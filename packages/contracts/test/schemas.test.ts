@@ -37,14 +37,18 @@ function frozenSchema(mdFile: string, $id: string): unknown {
 }
 
 describe('vendored schemas', () => {
-  it('exposes the registered schema ids (incl. cce-1.1 + snapshot-epoch-manifest-1.0)', () => {
+  it('exposes the registered schema ids (incl. cce-1.1, snapshot + evidence/WORM)', () => {
     expect(SCHEMA_IDS.sort()).toEqual([
+      'anchor-record-1.0',
       'cce-1.0',
       'cce-1.1',
       'db-audit-event-1.0',
+      'evidence-export-package-1.0',
+      'evidence-segment-manifest-1.0',
       'execution-result-1.0',
       'reversal-directive-1.0',
       'snapshot-epoch-manifest-1.0',
+      'verification-report-1.0',
     ]);
   });
 
