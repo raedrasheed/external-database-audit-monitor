@@ -10,6 +10,7 @@
   "dependencies": {
     "@edam/cce-model": "*",
     "@edam/canonical": "*",
-    "@edam/normalization": "*"
+    "@edam/normalization": "*",
+    "@edam/cdc-collector": "*"
   }
 }

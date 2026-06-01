@@ -5,6 +5,11 @@
   "type": "module",
   "description": "EDAM CDC Collector — reads Debezium change events, tracks durable offsets, and emits CAPTURED records to the internal bus (Epic E2). Read-only; never writes to the monitored DB (INV-1).",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./attestation": "./src/attestation/assess.ts",
+    "./completeness": "./src/completeness/watcher.ts"
+  },
   "scripts": {
     "start": "tsx src/index.ts"
   },

@@ -3,6 +3,8 @@
 
 import { buildCce, compareCce, type NormalizedChange, type NormalizedTransaction } from '@edam/cce-model';
 import { CceStreamGuard } from '@edam/normalization';
+import { assessFidelity } from '@edam/cdc-collector/attestation';
+import { CompletenessWatcher } from '@edam/cdc-collector/completeness';
 import type { ConformanceCase, ConformanceOutcome } from './types.js';
 
 const UUID = '3e11fa47-71ca-11e1-9e33-c80aa9429562';
@@ -131,4 +133,48 @@ export const C6: ConformanceCase = {
   },
 };
 
-export const CASES: ConformanceCase[] = [C3, C4, C5, C6];
+// ---------------------------------------------------------------------------
+// C-7: source row-image downgrade -> DEGRADED + CRITICAL alarm (the C4 attack).
+// ---------------------------------------------------------------------------
+export const C7: ConformanceCase = {
+  id: 'C-7',
+  title: 'Row-image downgrade => DEGRADED fidelity + CRITICAL alarm',
+  spec_ref: 'CCE-v1-Specification.md §6.4; EDAM-v2-Architecture.md §4 (review C4)',
+  run(): ConformanceOutcome {
+    const healthy = {
+      engine: 'mysql' as const, log_bin: 'ON', binlog_format: 'ROW', binlog_row_image: 'FULL',
+      gtid_mode: 'ON', gtid_strict_mode: null, binlog_expire_logs_seconds: 604800, server_uuid: UUID,
+    };
+    const okRes = assessFidelity(healthy, { minBinlogRetentionSeconds: 86400 });
+    if (okRes.assessment.state !== 'HEALTHY') return fail('healthy config should assess HEALTHY');
+
+    const downgraded = assessFidelity({ ...healthy, binlog_row_image: 'MINIMAL' }, { minBinlogRetentionSeconds: 86400 });
+    if (downgraded.assessment.state !== 'DEGRADED') return fail(`row_image=MINIMAL should be DEGRADED, got ${downgraded.assessment.state}`);
+    if (!downgraded.alarms.some((a) => a.kind === 'CONFIG_DOWNGRADE' && a.severity === 'critical')) {
+      return fail('row-image downgrade should raise a CRITICAL CONFIG_DOWNGRADE alarm');
+    }
+    if (!/binlog_row_image/.test(downgraded.assessment.degraded_reason ?? '')) return fail('degraded_reason should cite binlog_row_image');
+    return ok('binlog_row_image=MINIMAL => DEGRADED + CRITICAL alarm; HEALTHY otherwise.');
+  },
+};
+
+// ---------------------------------------------------------------------------
+// C-8: injected GTID gap -> gap_detected.
+// ---------------------------------------------------------------------------
+export const C8: ConformanceCase = {
+  id: 'C-8',
+  title: 'Injected GTID gap => gap_detected',
+  spec_ref: 'CCE-v1-Specification.md §6.5; EDAM-v2-Architecture.md §4',
+  run(): ConformanceOutcome {
+    const contiguous = new CompletenessWatcher({ engine: 'mysql', dbId: 'kafel-dev-mysql' });
+    for (let n = 1; n <= 5; n++) contiguous.observeConsumed(`${UUID}:${n}`);
+    if (contiguous.computeGap(`${UUID}:1-10`).gap_detected) return fail('contiguous consume should not report a gap');
+
+    const holed = new CompletenessWatcher({ engine: 'mysql', dbId: 'kafel-dev-mysql' });
+    for (const n of [1, 2, 4, 5]) holed.observeConsumed(`${UUID}:${n}`); // skip 3
+    if (!holed.computeGap().gap_detected) return fail('skipped transaction (hole) must report gap_detected');
+    return ok('Skipped transaction surfaces gap_detected; contiguous stream does not.');
+  },
+};
+
+export const CASES: ConformanceCase[] = [C3, C4, C5, C6, C7, C8];
