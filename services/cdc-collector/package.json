@@ -11,7 +11,8 @@
   "dependencies": {
     "ioredis": "^5.4.1",
     "pg": "^8.12.0",
-    "@edam/canonical": "*"
+    "@edam/canonical": "*",
+    "mysql2": "^3.11.0"
   },
   "devDependencies": {
     "@types/pg": "^8.11.6"

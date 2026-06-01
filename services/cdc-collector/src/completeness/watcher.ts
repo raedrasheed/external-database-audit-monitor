@@ -88,6 +88,25 @@ export class CompletenessWatcher {
     this.consumedOffsetKey = gtid;
   }
 
+  private currentPhase: SnapshotPhase = 'streaming';
+
+  observePhase(phase: SnapshotPhase): void {
+    this.currentPhase = phase;
+  }
+
+  get snapshotPhase(): SnapshotPhase {
+    return this.currentPhase;
+  }
+
+  /** Main per-event entry: track gtid, phase, and activity together. */
+  observeEvent(args: { gtid: string | null; phase: SnapshotPhase; at: string }): void {
+    this.observePhase(args.phase);
+    // GTID continuity is meaningful for streamed transactions; snapshot reads
+    // carry no GTID and are skipped by observeConsumed(null).
+    this.observeConsumed(args.gtid);
+    this.observeEventActivity(args.at);
+  }
+
   consumedSetString(): string {
     return this.consumed.toString();
   }
@@ -143,6 +162,50 @@ export class CompletenessWatcher {
       });
     }
     return result;
+  }
+
+  /**
+   * Produce a CompletenessUpdate (CCE §6.5 shape) for Normalization (E4) to
+   * attach to CCE `completeness`. Runs checkGap (raising alarms for new gaps).
+   */
+  buildUpdate(args: {
+    sourceExecuted?: string | null;
+    alarms: AlarmSink;
+    atIso: string;
+    nowMs: number;
+  }): CompletenessUpdate {
+    const gap = this.checkGap(args.sourceExecuted, args.alarms, args.atIso);
+    return {
+      db_id: this.opts.dbId,
+      consumed_offset_key: this.consumedOffsetKey,
+      consumed_gtid_set: this.consumed.toString(),
+      heartbeat_ts: this.lastHeartbeatIso,
+      gap_detected: gap.gap_detected,
+      snapshot_phase: this.currentPhase,
+      liveness: this.liveness(args.nowMs),
+    };
+  }
+}
+
+/** CCE §6.5 completeness shape (+ db_id / liveness context). */
+export interface CompletenessUpdate {
+  db_id: string;
+  consumed_offset_key: string | null;
+  consumed_gtid_set: string;
+  heartbeat_ts: string | null;
+  gap_detected: boolean;
+  snapshot_phase: SnapshotPhase;
+  liveness: Liveness;
+}
+
+export interface CompletenessUpdateSink {
+  emit(update: CompletenessUpdate): Promise<void>;
+}
+
+export class InMemoryCompletenessUpdateSink implements CompletenessUpdateSink {
+  readonly updates: CompletenessUpdate[] = [];
+  async emit(update: CompletenessUpdate): Promise<void> {
+    this.updates.push(update);
   }
 }
 
