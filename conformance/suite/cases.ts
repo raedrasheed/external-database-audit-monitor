@@ -1,9 +1,18 @@
 // Conformance cases (Epic E6 / EDAM-T042..T046, mandate B).
 // Each case exercises the REAL frozen implementations.
 
-import { buildCce, compareCce, type NormalizedChange, type NormalizedTransaction } from '@edam/cce-model';
+import {
+  buildCce,
+  compareCce,
+  orderCces,
+  CceBuildError,
+  type NormalizedChange,
+  type NormalizedChangeEvent,
+  type NormalizedTransaction,
+} from '@edam/cce-model';
 import { serializeCanonical } from '@edam/canonical';
-import { CceStreamGuard, correlateActor } from '@edam/normalization';
+import { CceStreamGuard, TransactionAccumulator, assembleTransaction, correlateActor } from '@edam/normalization';
+import { validateCceFull } from '@edam/contracts';
 import { assessFidelity } from '@edam/cdc-collector/attestation';
 import { CompletenessWatcher } from '@edam/cdc-collector/completeness';
 import type { ConformanceCase, ConformanceOutcome } from './types.js';
@@ -222,4 +231,251 @@ export const C10: ConformanceCase = {
   },
 };
 
-export const CASES: ConformanceCase[] = [C1, C3, C4, C5, C6, C7, C8, C10];
+// ===========================================================================
+// CCE-AMD-001 Rev 4 — snapshot-phase capture conformance (Rev 4 §7).
+// Each case exercises the REAL frozen implementations (builder, validator,
+// stream guard, ordering).
+// ===========================================================================
+
+const HEALTHY_FID = {
+  state: 'HEALTHY' as const,
+  source_config: { binlog_format: 'ROW', binlog_row_image: 'FULL', gtid_mode: 'ON', replica_identity: null, log_bin: 'ON', config_snapshot_id: 'cfg' },
+};
+
+function snapshotEvent(pk: number, opts: { ts?: string; file?: string; pos?: number; ref?: unknown } = {}): NormalizedChangeEvent {
+  const primary_key = opts.ref !== undefined ? (opts.ref as Record<string, unknown>) : { id: pk };
+  return {
+    source: { db_id: 'kafel-dev-mysql', engine: 'mysql', server_uuid: UUID, schema: 'kafel' },
+    tx_id: null,
+    commit_ts: opts.ts ?? '2026-06-01T10:00:00.000Z',
+    ingest_ts: '2026-06-01T10:00:00.100Z',
+    offset: { gtid: null, binlog_file: opts.file ?? 'mysql-bin.000003', binlog_pos: opts.pos ?? 4096, lsn: null, scn: null, resume_token: null },
+    snapshot_phase: 'snapshot',
+    change: { operation: 'INSERT', object: { schema: 'kafel', name: 'donations', primary_key }, before: null, after: { id: pk, amount: '1.00' } },
+  };
+}
+
+function buildSnapshot(ev: NormalizedChangeEvent): NormalizedTransaction {
+  return assembleTransaction(new TransactionAccumulator().add(ev)[0]!, HEALTHY_FID, null, { attribution_confidence: 'unattributed' });
+}
+
+/** A built, valid cce-1.0 streaming CCE, with evidence removed for mutation. */
+function streamingCore(): Record<string, any> {
+  const cce = buildCce(txWith(70, [{ operation: 'UPDATE', object: don(1), before: { id: 1, amount: '1.00' }, after: { id: 1, amount: '2.00' } }])) as any;
+  const core = structuredClone(cce);
+  delete core.evidence; // avoid V12 noise — we test offset/guard rejection
+  return core;
+}
+
+function rejectsWith(cce: unknown, rule: string): boolean {
+  const r = validateCceFull(cce);
+  return !r.valid && r.errors.some((e) => e.rule === rule);
+}
+
+// C-OFFSET-EMPTY-{GTID,LSN,SCN,RESUME}: empty real keys are rejected (HIGH-1).
+export const C_OFFSET_EMPTY: ConformanceCase = {
+  id: 'C-OFFSET-EMPTY',
+  title: 'Empty real offset keys are rejected (HIGH-1)',
+  spec_ref: 'CCE-AMD-001 Rev 4 §1; V11',
+  run(): ConformanceOutcome {
+    for (const key of ['gtid', 'lsn', 'scn', 'resume_token'] as const) {
+      const core = streamingCore();
+      core.offset = { gtid: null, binlog_file: null, binlog_pos: null, lsn: null, scn: null, resume_token: null };
+      core.offset[key] = ''; // empty real key
+      if (!rejectsWith(core, 'V11')) return fail(`empty ${key} was not rejected with V11`);
+    }
+    return ok('Empty gtid/lsn/scn/resume_token each rejected (V11) — no real-key match.');
+  },
+};
+
+// C-STREAM-EMPTY-GTID-NO-BYPASS: empty gtid + binlog cannot bypass V16.
+export const C_STREAM_EMPTY_GTID: ConformanceCase = {
+  id: 'C-STREAM-EMPTY-GTID-NO-BYPASS',
+  title: 'Empty gtid + binlog on a streaming event cannot bypass V16',
+  spec_ref: 'CCE-AMD-001 Rev 4 §1/§5; V16',
+  run(): ConformanceOutcome {
+    const core = streamingCore();
+    core.offset = { gtid: '', binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    // schema_version stays cce-1.0, snapshot_phase streaming
+    return rejectsWith(core, 'V16')
+      ? ok('Streaming gtid:"" + binlog rejected (V16) — empty key is not a real key.')
+      : fail('empty-gtid streaming event bypassed V16');
+  },
+};
+
+// C-STREAM-NOGTID-FAIL: streaming with no GTID fails (phase=streaming AND absent).
+export const C_STREAM_NOGTID: ConformanceCase = {
+  id: 'C-STREAM-NOGTID-FAIL',
+  title: 'Dropped-GTID streaming event fails closed',
+  spec_ref: 'CCE-AMD-001 Rev 4 §5; V16',
+  run(): ConformanceOutcome {
+    const withPhase = streamingCore();
+    withPhase.offset = { gtid: null, binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    withPhase.completeness.snapshot_phase = 'streaming';
+    if (!rejectsWith(withPhase, 'V16')) return fail('streaming(phase) dropped-GTID not rejected');
+
+    const noPhase = streamingCore();
+    noPhase.offset = { gtid: null, binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    delete noPhase.completeness.snapshot_phase;
+    if (!rejectsWith(noPhase, 'V16')) return fail('streaming(no phase) dropped-GTID not rejected — bypass!');
+    return ok('Dropped-GTID streaming event rejected with and without snapshot_phase (V16).');
+  },
+};
+
+// C-NONMYSQL-BINLOG-FAIL: non-MySQL engine cannot use the binlog branch.
+export const C_NONMYSQL_BINLOG: ConformanceCase = {
+  id: 'C-NONMYSQL-BINLOG-FAIL',
+  title: 'Non-MySQL/MariaDB binlog-only offset is rejected',
+  spec_ref: 'CCE-AMD-001 Rev 4 §5; V16 (M2)',
+  run(): ConformanceOutcome {
+    const core = streamingCore();
+    core.schema_version = 'cce-1.1';
+    core.source.engine = 'postgres';
+    core.offset = { gtid: null, binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    core.completeness.snapshot_phase = 'snapshot';
+    core.completeness.snapshot_epoch_id = 'snap-0123456789abcdef';
+    return rejectsWith(core, 'V16')
+      ? ok('postgres binlog-only offset rejected (V16 engine clause).')
+      : fail('non-MySQL engine accepted a binlog-only offset');
+  },
+};
+
+// C-1.0-BINLOG-FAIL: a cce-1.0-labelled event cannot use the binlog branch.
+export const C_10_BINLOG: ConformanceCase = {
+  id: 'C-1.0-BINLOG-FAIL',
+  title: 'cce-1.0-labelled binlog-only offset is rejected (M1)',
+  spec_ref: 'CCE-AMD-001 Rev 4 §5; V16 (M1)',
+  run(): ConformanceOutcome {
+    const core = streamingCore(); // schema_version: cce-1.0
+    core.offset = { gtid: null, binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    core.completeness.snapshot_phase = 'snapshot';
+    core.completeness.snapshot_epoch_id = 'snap-0123456789abcdef';
+    return rejectsWith(core, 'V16')
+      ? ok('cce-1.0 binlog-only offset rejected (V16 version clause).')
+      : fail('cce-1.0-labelled event accepted a binlog-only offset');
+  },
+};
+
+// C-SNAP-EPOCH-IDLE-RERUN: same watermark, different snapshot ts => distinct epoch, no V15 (HIGH-2).
+export const C_SNAP_IDLE_RERUN: ConformanceCase = {
+  id: 'C-SNAP-EPOCH-IDLE-RERUN',
+  title: 'Idle-DB re-snapshot (same watermark, new ts) => distinct epoch, no V15',
+  spec_ref: 'CCE-AMD-001 Rev 4 §2; HIGH-2',
+  run(): ConformanceOutcome {
+    const a = buildCce(buildSnapshot(snapshotEvent(90211, { ts: '2026-06-01T10:00:00.000Z' })));
+    const b = buildCce(buildSnapshot(snapshotEvent(90211, { ts: '2026-06-01T12:00:00.000Z' }))); // same file/pos, later snapshot
+    if (a.envelope_id === b.envelope_id) return fail('idle re-snapshot produced the same envelope_id');
+    const guard = new CceStreamGuard();
+    if (guard.check(a).action !== 'EMIT') return fail('epoch 1 should EMIT');
+    if (guard.check(b).action !== 'EMIT') return fail('epoch 2 should EMIT (distinct envelope) — false V15!');
+    return ok('Same watermark + different snapshot ts => distinct epoch/envelope; no false V15.');
+  },
+};
+
+// C-SNAP-EPOCH-NEWRUN: advanced watermark => distinct epoch, no V15.
+export const C_SNAP_NEWRUN: ConformanceCase = {
+  id: 'C-SNAP-EPOCH-NEWRUN',
+  title: 'Re-snapshot at an advanced watermark => distinct epoch, no V15',
+  spec_ref: 'CCE-AMD-001 Rev 4 §2',
+  run(): ConformanceOutcome {
+    const a = buildCce(buildSnapshot(snapshotEvent(90211, { pos: 4096 })));
+    const b = buildCce(buildSnapshot(snapshotEvent(90211, { pos: 8192 })));
+    if (a.envelope_id === b.envelope_id) return fail('advanced watermark produced the same envelope_id');
+    const guard = new CceStreamGuard();
+    return guard.check(a).action === 'EMIT' && guard.check(b).action === 'EMIT'
+      ? ok('Advanced watermark => distinct epoch; both EMIT, no V15.')
+      : fail('advanced-watermark re-snapshot raised a false V15');
+  },
+};
+
+// C-SNAP-REPLAY-IDENTICAL: byte-identical replay => same id/hash => DUPLICATE.
+export const C_SNAP_REPLAY: ConformanceCase = {
+  id: 'C-SNAP-REPLAY-IDENTICAL',
+  title: 'Replay of the same captured snapshot is byte-identical (DUPLICATE)',
+  spec_ref: 'CCE-AMD-001 Rev 4 §2/§5',
+  run(): ConformanceOutcome {
+    const a = buildCce(buildSnapshot(snapshotEvent(90211)));
+    const b = buildCce(buildSnapshot(snapshotEvent(90211)));
+    if (a.envelope_id !== b.envelope_id || a.evidence.event_hash !== b.evidence.event_hash) {
+      return fail('replay produced different envelope_id/event_hash');
+    }
+    const guard = new CceStreamGuard();
+    if (guard.check(a).action !== 'EMIT') return fail('first delivery should EMIT');
+    if (guard.check(b).action !== 'DUPLICATE') return fail('identical replay should be DUPLICATE');
+    return ok('Identical captured snapshot replays byte-identical; second delivery DUPLICATE-skipped.');
+  },
+};
+
+// C-SNAP-CHAIN-ORDER: deterministic chain order independent of arrival order.
+export const C_SNAP_CHAIN_ORDER: ConformanceCase = {
+  id: 'C-SNAP-CHAIN-ORDER',
+  title: 'Snapshot rows seal in a deterministic total order',
+  spec_ref: 'CCE-AMD-001 Rev 4 §6; F3',
+  run(): ConformanceOutcome {
+    const ids = [5, 2, 9, 1, 7];
+    const order1 = orderCces(ids.map((i) => buildCce(buildSnapshot(snapshotEvent(i))))).map((c) => c.envelope_id);
+    const order2 = orderCces([...ids].reverse().map((i) => buildCce(buildSnapshot(snapshotEvent(i))))).map((c) => c.envelope_id);
+    return JSON.stringify(order1) === JSON.stringify(order2)
+      ? ok('Two arrival orders produce an identical sealed sequence (deterministic total order).')
+      : fail('snapshot chain order depends on arrival order');
+  },
+};
+
+// C-TXID-NOCOLLISION: delimiter-bearing PKs cannot alias (F4).
+export const C_TXID_NOCOLLISION: ConformanceCase = {
+  id: 'C-TXID-NOCOLLISION',
+  title: 'Adversarial primary keys cannot alias the snapshot tx_id',
+  spec_ref: 'CCE-AMD-001 Rev 4 §3; F4',
+  run(): ConformanceOutcome {
+    const a = buildCce(buildSnapshot(snapshotEvent(1, { ref: { ref: 'a:b' } })));
+    const b = buildCce(buildSnapshot(snapshotEvent(1, { ref: { ref: 'a', x: 'b' } })));
+    if (a.transaction.tx_id === b.transaction.tx_id || a.envelope_id === b.envelope_id) {
+      return fail('delimiter-bearing PKs aliased to the same tx_id/envelope_id');
+    }
+    return ok('Canonical-tuple row key keeps delimiter-bearing PKs distinct.');
+  },
+};
+
+// C-SNAP-COVERAGE: incomplete/unknown coverage cannot be HEALTHY; complete can (V18, MED-2).
+export const C_SNAP_COVERAGE: ConformanceCase = {
+  id: 'C-SNAP-COVERAGE',
+  title: 'Snapshot coverage honesty composes with fidelity (V18)',
+  spec_ref: 'CCE-AMD-001 Rev 4 §8; V18 (MED-2)',
+  run(): ConformanceOutcome {
+    // incomplete + HEALTHY => build must reject (V18).
+    const inc = buildSnapshot(snapshotEvent(90211)) as any;
+    inc.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: 1000, emitted_rows: 990, status: 'incomplete' };
+    try {
+      buildCce(inc);
+      return fail('incomplete coverage reported HEALTHY was accepted');
+    } catch (err) {
+      if (!(err instanceof CceBuildError) || !err.errors.some((e) => e.rule === 'V18')) {
+        return fail(`incomplete+HEALTHY rejected for the wrong reason: ${String((err as Error).message)}`);
+      }
+    }
+    // unknown (expected null) + HEALTHY => reject.
+    const unk = buildSnapshot(snapshotEvent(90212)) as any;
+    unk.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: null, emitted_rows: 5, status: 'in_progress' };
+    try {
+      buildCce(unk);
+      return fail('unknown coverage reported HEALTHY was accepted');
+    } catch (err) {
+      if (!(err instanceof CceBuildError) || !err.errors.some((e) => e.rule === 'V18')) return fail('unknown+HEALTHY rejected for the wrong reason');
+    }
+    // incomplete + DEGRADED + reason => valid (composition); complete + HEALTHY => valid.
+    const deg = buildSnapshot(snapshotEvent(90213)) as any;
+    deg.fidelity = { state: 'DEGRADED', degraded_reason: 'snapshot coverage incomplete: donations 990/1000', source_config: HEALTHY_FID.source_config };
+    deg.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: 1000, emitted_rows: 990, status: 'incomplete' };
+    buildCce(deg); // throws if invalid
+    const comp = buildSnapshot(snapshotEvent(90214)) as any;
+    comp.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: 1000, emitted_rows: 1000, status: 'complete' };
+    buildCce(comp); // HEALTHY permitted
+    return ok('incomplete/unknown coverage rejects HEALTHY (V18); DEGRADED+reason and complete+HEALTHY accepted.');
+  },
+};
+
+export const CASES: ConformanceCase[] = [
+  C1, C3, C4, C5, C6, C7, C8, C10,
+  C_OFFSET_EMPTY, C_STREAM_EMPTY_GTID, C_STREAM_NOGTID, C_NONMYSQL_BINLOG, C_10_BINLOG,
+  C_SNAP_IDLE_RERUN, C_SNAP_NEWRUN, C_SNAP_REPLAY, C_SNAP_CHAIN_ORDER, C_TXID_NOCOLLISION, C_SNAP_COVERAGE,
+];

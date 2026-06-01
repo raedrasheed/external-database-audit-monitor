@@ -9,7 +9,7 @@ describe('CCE conformance suite', () => {
   it('every case has a fixture, expected result, and spec traceability', () => {
     for (const c of CASES) {
       expect(c.spec_ref.length).toBeGreaterThan(0);
-      expect(c.id).toMatch(/^C-\d+$/);
+      expect(c.id).toMatch(/^C-[A-Za-z0-9.-]+$/);
     }
   });
 

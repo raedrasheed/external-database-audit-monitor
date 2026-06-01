@@ -1,0 +1,79 @@
+{
+  "fixture_id": "FX-006",
+  "description": "MySQL snapshot read (op=r) -> cce-1.1 INSERT with snapshot epoch identity (CCE-AMD-001 Rev 4)",
+  "conformance_refs": [
+    "CCE-AMD-001 Rev 4 §2/§3/§4",
+    "CCE-v1-Specification.md §5"
+  ],
+  "sensitive_fields": [
+    "kafel.donations.donor_email"
+  ],
+  "input": {
+    "source": {
+      "db_id": "kafel-dev-mysql",
+      "engine": "mysql",
+      "server_uuid": "3e11fa47-71ca-11e1-9e33-c80aa9429562",
+      "schema": "kafel"
+    },
+    "transaction": {
+      "tx_id": "snapshot:snap-2abd99cd47687df1:fb4aa94197d1d0ea71cbeb2ae4f26d45e0695cda4eb794b16cec0f69d18d30b7",
+      "commit_ts": "2026-06-01T09:30:00.000Z",
+      "ingest_ts": "2026-06-01T09:30:05.000Z"
+    },
+    "offset": {
+      "gtid": null,
+      "binlog_file": "mysql-bin.000003",
+      "binlog_pos": 4096,
+      "lsn": null,
+      "scn": null,
+      "resume_token": null
+    },
+    "fidelity": {
+      "state": "HEALTHY",
+      "source_config": {
+        "binlog_format": "ROW",
+        "binlog_row_image": "FULL",
+        "gtid_mode": "ON",
+        "replica_identity": null,
+        "log_bin": "ON",
+        "config_snapshot_id": "cfg-snapshot-2026-06-01"
+      },
+      "degraded_reason": null
+    },
+    "completeness": {
+      "consumed_offset_key": "snapshot-epoch:snap-2abd99cd47687df1",
+      "gap_detected": false,
+      "snapshot_phase": "snapshot",
+      "snapshot_epoch_id": "snap-2abd99cd47687df1"
+    },
+    "actor": {
+      "attribution_confidence": "unattributed"
+    },
+    "changes": [
+      {
+        "operation": "INSERT",
+        "object": {
+          "schema": "kafel",
+          "name": "donations",
+          "primary_key": {
+            "id": 90211
+          }
+        },
+        "before": null,
+        "after": {
+          "id": 90211,
+          "amount": "100.00",
+          "status": "approved",
+          "donor_email": "donor@example.org"
+        }
+      }
+    ]
+  },
+  "golden": {
+    "status": "PINNED",
+    "schema_version": "cce-1.1",
+    "envelope_id": "d40a519f-9fec-5c3d-994f-3842e18baa56",
+    "event_hash": "sha256:c0ab3b4694b143279a970e32d51ea6b280c4cbb05b6e932f51562f1b492641ea",
+    "row_hash": "sha256:a08034eae9fae46721f78c98210c5b7d22eb3a5f603b429e2df4acf40314da2a"
+  }
+}
