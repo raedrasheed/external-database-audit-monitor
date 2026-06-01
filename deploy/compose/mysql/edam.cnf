@@ -1,0 +1,20 @@
+# MySQL configuration for the monitored database (Epic E7 / EDAM-T048).
+# Enforces the capture fidelity the CCE pipeline depends on:
+#   - ROW binlog with FULL row image  => complete before/after for diff
+#   - GTID enabled                    => completeness / continuity proof
+# The native audit stand-in for local dev is the general query log written to
+# the mysql.general_log TABLE (read-only by the audit reader). Production uses
+# MySQL Enterprise Audit / MariaDB Audit Plugin / Percona / cloud audit logs.
+[mysqld]
+server-id                  = 223344
+log_bin                    = mysql-bin
+binlog_format              = ROW
+binlog_row_image           = FULL
+gtid_mode                  = ON
+enforce_gtid_consistency   = ON
+binlog_expire_logs_seconds = 604800
+log_bin_trust_function_creators = 1
+
+# Native audit feed (dev stand-in)
+general_log                = ON
+log_output                 = TABLE

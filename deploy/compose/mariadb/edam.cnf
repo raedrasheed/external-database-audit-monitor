@@ -1,0 +1,20 @@
+# MariaDB configuration (Epic E7 / EDAM-T048).
+# Second-engine target (distinct CDC adapter from MySQL per the Sprint plan)
+# and the reference native audit source via the MariaDB Audit Plugin
+# (server_audit), which is the free audit option named in the DB-Audit Event
+# contract. Same fidelity guarantees as MySQL: ROW + FULL image + GTID-strict.
+[mariadbd]
+server-id              = 223355
+log_bin               = maria-bin
+binlog_format         = ROW
+binlog_row_image      = FULL
+gtid_strict_mode      = ON
+log_bin_trust_function_creators = 1
+
+# Native audit (MariaDB Audit Plugin)
+plugin_load_add          = server_audit
+server_audit_logging     = ON
+server_audit_events      = CONNECT,QUERY,TABLE
+server_audit_output_type = FILE
+server_audit_file_path   = /var/lib/mysql/server_audit.log
+server_audit_file_rotate_size = 1000000
