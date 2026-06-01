@@ -16,3 +16,4 @@ coverage/
 no-write-path-proof.json
 secret-hygiene-proof.json
 invariant-report.json
+evidence-schemas-verbatim-proof.json

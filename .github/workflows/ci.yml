@@ -136,6 +136,24 @@ jobs:
           name: no-write-path-proof
           path: no-write-path-proof.json
 
+  # Evidence-schema provenance gate (Sprint-2 / EDAM-T102): the four vendored
+  # evidence schemas must match the frozen WORM spec §16 blocks verbatim.
+  evidence-schemas-verbatim:
+    name: evidence-schemas-verbatim (provenance)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
+      - name: Assert vendored evidence schemas match the spec (+ emit proof)
+        run: npm run evidence-schemas-verbatim -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidence-schemas-verbatim-proof
+          path: evidence-schemas-verbatim-proof.json
+
   # Masking & secret-hygiene proof (Epic E8 / EDAM-T053).
   secret-hygiene:
     name: secret-hygiene (INV-2/PII)
