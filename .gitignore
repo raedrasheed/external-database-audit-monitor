@@ -8,3 +8,8 @@ coverage/
 deploy/compose/**/data/
 .DS_Store
 *.tsbuildinfo
+
+# E6 generated artifacts
+conformance-report.json
+determinism-*.json
+coverage/
