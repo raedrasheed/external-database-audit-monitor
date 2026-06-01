@@ -68,6 +68,8 @@ export function buildDebeziumProperties(connectorClass: string, opts: DebeziumCo
     'debezium.source.schema.history.internal=io.debezium.storage.file.history.FileSchemaHistory',
     `debezium.source.schema.history.internal.file.filename=${opts.schemaHistoryFile}`,
     'debezium.source.binary.handling.mode=base64',
+    // Money/decimals as exact strings (CCE §12.8 — never floating point).
+    'debezium.source.decimal.handling.mode=string',
     'debezium.format.value=json',
     'debezium.format.value.schemas.enable=false',
     'debezium.format.key=json',

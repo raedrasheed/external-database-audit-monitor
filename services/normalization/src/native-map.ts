@@ -39,8 +39,14 @@ function unwrap(value: unknown): any {
   return value;
 }
 
-function mapOperation(op: unknown, source: any): Operation {
-  switch (op) {
+function ddlStatement(value: any): string | null {
+  if (typeof value?.ddl === 'string') return value.ddl;
+  if (typeof value?.source?.ddl === 'string') return value.source.ddl;
+  return null;
+}
+
+function mapOperation(value: any): Operation {
+  switch (value?.op) {
     case 'c':
     case 'r': // snapshot read = existing row materialized as an INSERT
       return 'INSERT';
@@ -51,9 +57,9 @@ function mapOperation(op: unknown, source: any): Operation {
     case 't':
       return 'TRUNCATE';
     default:
-      // DDL events carry a ddl payload and no row op.
-      if (source && typeof source.ddl === 'string') return 'DDL';
-      throw new NormalizationError(`unsupported or missing CDC op: ${JSON.stringify(op)}`);
+      // DDL / schema-change events carry a ddl payload and no row op.
+      if (ddlStatement(value) !== null) return 'DDL';
+      throw new NormalizationError(`unsupported or missing CDC op: ${JSON.stringify(value?.op)}`);
   }
 }
 
@@ -79,12 +85,11 @@ export function mapCapturedRecord(
     throw new NormalizationError('malformed CDC event: value is not an object');
   }
   const src = value.source ?? {};
+  const operation = mapOperation(value);
   const table = String(src.table ?? record.source.table ?? '');
-  if (!table && value.op !== undefined && !src.ddl) {
+  if (!table && operation !== 'DDL') {
     throw new NormalizationError('malformed CDC event: missing source.table');
   }
-
-  const operation = mapOperation(value.op, src);
 
   const before = (value.before ?? null) as Record<string, unknown> | null;
   const after = (value.after ?? null) as Record<string, unknown> | null;
@@ -102,7 +107,7 @@ export function mapCapturedRecord(
     // Nullity per CCE §5 (enforced fully in T027/build): INSERT before=null, DELETE after=null.
     before: operation === 'INSERT' ? null : before,
     after: operation === 'DELETE' || operation === 'TRUNCATE' || operation === 'DDL' ? null : after,
-    ...(operation === 'DDL' ? { ddl: { statement: String(src.ddl ?? value.ddl ?? '') } } : {}),
+    ...(operation === 'DDL' ? { ddl: { statement: ddlStatement(value) ?? '' } } : {}),
   };
 
   const commitTsMs = typeof src.ts_ms === 'number' ? src.ts_ms : null;
