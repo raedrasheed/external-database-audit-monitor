@@ -1,7 +1,15 @@
 // Operational alarms (Epic E2 / EDAM-T015).
 // Distinct from risk alerts (E4); these are collector-health signals.
 
-export type AlarmKind = 'LAG' | 'STALL' | 'RECONNECT' | 'SOURCE_ERROR';
+export type AlarmKind =
+  | 'LAG'
+  | 'STALL'
+  | 'RECONNECT'
+  | 'SOURCE_ERROR'
+  | 'CONFIG_DOWNGRADE'
+  | 'FIDELITY_DEGRADED'
+  | 'COMPLETENESS_GAP'
+  | 'AUDIT_TAMPER';
 export type AlarmSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export interface Alarm {
