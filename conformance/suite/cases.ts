@@ -2,6 +2,7 @@
 // Each case exercises the REAL frozen implementations.
 
 import { buildCce, compareCce, type NormalizedChange, type NormalizedTransaction } from '@edam/cce-model';
+import { CceStreamGuard } from '@edam/normalization';
 import type { ConformanceCase, ConformanceOutcome } from './types.js';
 
 const UUID = '3e11fa47-71ca-11e1-9e33-c80aa9429562';
@@ -106,4 +107,28 @@ export const C5: ConformanceCase = {
   },
 };
 
-export const CASES: ConformanceCase[] = [C3, C4, C5];
+// ---------------------------------------------------------------------------
+// C-6: replay idempotency + perturbed replay flagged (V15).
+// ---------------------------------------------------------------------------
+export const C6: ConformanceCase = {
+  id: 'C-6',
+  title: 'Replay idempotency; perturbed replay flagged (V15)',
+  spec_ref: 'CCE-v1-Specification.md §4.5, §10 V15',
+  run(): ConformanceOutcome {
+    const guard = new CceStreamGuard();
+    const a = buildCce(txWith(20, [{ operation: 'UPDATE', object: don(1), before: { id: 1, amount: '1.00' }, after: { id: 1, amount: '2.00' } }]));
+    if (guard.check(a).action !== 'EMIT') return fail('first delivery should EMIT');
+    if (guard.check(a).action !== 'DUPLICATE') return fail('identical replay should be DUPLICATE (idempotent)');
+
+    // Same tx_id (-> same envelope_id) but different content -> different event_hash.
+    const b = buildCce(txWith(20, [{ operation: 'UPDATE', object: don(1), before: { id: 1, amount: '1.00' }, after: { id: 1, amount: '999.00' } }]));
+    if (a.envelope_id !== b.envelope_id) return fail('test setup: envelope_id should match');
+    const r = guard.check(b);
+    if (r.action !== 'INTEGRITY_VIOLATION' || !r.violations.some((v) => v.rule === 'V15')) {
+      return fail('duplicate envelope_id with differing event_hash must be V15 INTEGRITY_VIOLATION');
+    }
+    return ok('Idempotent duplicate skipped; perturbed replay flagged V15.');
+  },
+};
+
+export const CASES: ConformanceCase[] = [C3, C4, C5, C6];

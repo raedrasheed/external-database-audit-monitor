@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@edam/cce-model": "*",
-    "@edam/canonical": "*"
+    "@edam/canonical": "*",
+    "@edam/normalization": "*"
   }
 }
