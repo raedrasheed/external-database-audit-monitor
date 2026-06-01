@@ -16,18 +16,68 @@ export interface GapResult {
   missing_below_watermark: GtidInterval[];
 }
 
+export type Liveness = 'live' | 'idle' | 'stalled';
+
 export interface CompletenessWatcherOptions {
   engine: Engine;
   dbId: string;
+  /** No activity (data OR heartbeat) for longer than this => stalled. */
+  stallTimeoutMs?: number;
+  /** No data events (but heartbeats current) for longer than this => idle. */
+  idleThresholdMs?: number;
 }
 
 export class CompletenessWatcher {
   private readonly codec: GtidCodec;
   private readonly consumed = new GtidSet();
   private consumedOffsetKey: string | null = null;
+  private readonly stallTimeoutMs: number;
+  private readonly idleThresholdMs: number;
+
+  private lastHeartbeatIso: string | null = null;
+  private lastActivityMs: number | null = null;
+  private lastEventMs: number | null = null;
 
   constructor(private readonly opts: CompletenessWatcherOptions) {
     this.codec = getCodec(opts.engine);
+    this.stallTimeoutMs = opts.stallTimeoutMs ?? 60000;
+    this.idleThresholdMs = opts.idleThresholdMs ?? 20000;
+  }
+
+  private markActivity(atIso: string): void {
+    const ms = Date.parse(atIso);
+    if (Number.isFinite(ms)) {
+      this.lastActivityMs = this.lastActivityMs === null ? ms : Math.max(this.lastActivityMs, ms);
+    }
+  }
+
+  /** Heartbeat watermark — keeps a quiet-but-healthy stream from looking stalled. */
+  observeHeartbeat(atIso: string): void {
+    this.lastHeartbeatIso = atIso;
+    this.markActivity(atIso);
+  }
+
+  /** Data-event activity (separate from gtid tracking). */
+  observeEventActivity(atIso: string): void {
+    const ms = Date.parse(atIso);
+    if (Number.isFinite(ms)) this.lastEventMs = ms;
+    this.markActivity(atIso);
+  }
+
+  get heartbeatTs(): string | null {
+    return this.lastHeartbeatIso;
+  }
+
+  /**
+   * Distinguish a healthy-but-quiet stream (idle) from a stalled one using the
+   * heartbeat/activity watermark. Heartbeats count as activity.
+   */
+  liveness(nowMs: number): Liveness {
+    if (this.lastActivityMs === null) return 'idle'; // nothing observed yet
+    if (nowMs - this.lastActivityMs > this.stallTimeoutMs) return 'stalled';
+    if (this.lastEventMs === null) return 'idle'; // heartbeats only
+    if (nowMs - this.lastEventMs > this.idleThresholdMs) return 'idle';
+    return 'live';
   }
 
   /** Record a consumed transaction's GTID (called per processed data event). */
