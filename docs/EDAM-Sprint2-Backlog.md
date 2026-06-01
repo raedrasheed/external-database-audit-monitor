@@ -680,4 +680,35 @@ A task is **Done** when: code + tests merged on the feature branch; **all Sprint
 
 ---
 
+## 13. T104 MinIO Adapter Hardening — Tracked Findings (from the accepted adversarial review)
+
+The T104 adversarial review was **accepted** (verdict: APPROVE WITH CHANGES; T106 proceeds). T104 is a **dev** adapter; its committed implementation is **not** modified now. The findings below are tracked as Epic-E2A hardening tasks that **must be closed before the Sprint-2 live evidence validation + security sign-off (T160–T164)** and before any production WORM claim (H1/H2 are Critical in production). None requires a `WormStore` contract, CCE, or architecture change.
+
+### 13.1 Hardening backlog items (H1–H5)
+
+| ID | Title | Description | Dependencies | Priority | Est | Acceptance criteria | Risk tags | Maps to | Blocks |
+|---|---|---|---|---|---|---|---|---|---|
+| **EDAM-T104-H1** | Distinct MinIO credentials per identity | Replace the single-credential `MinioWormConfig`/`Client` with **three credential sets** (writer/reader/retention-admin) and three `Client`s under distinct IAM policies, so the writer connection is physically incapable of delete/overwrite/retention/legal-hold-lift. Adapter-local; **no `WormStore` contract change**. | T104 | P0 | 5 SP | Writer credential cannot delete/overwrite/alter-retention/lift-hold (verified against MinIO with that credential, 403); reader cannot write; admin is a separate credential. | `#security` `#key-custody` `#worm-immutability` | INV-EV-1, W-8, A-EV11 | T164 |
+| **EDAM-T104-H2** | Version-scoped delete enforcement | Stop deleting via delete markers; operate on **specific versionIds** so MinIO COMPLIANCE actually blocks the delete; correct the inaccurate "final authority" comment. | T104 | P0 | 3 SP | A version-scoped delete of a locked object is rejected by MinIO (403); no delete-marker hide path remains in `deleteExpired`. | `#worm-immutability` `#no-fabrication` | W-7, A-EV1, A-EV8 | T162, T164 |
+| **EDAM-T104-H3** | Bucket Object-Lock verification | On `ensureBucket`/startup, assert `getObjectLockConfig` shows lock **Enabled**; **refuse to operate** on a non-lock bucket (object lock cannot be enabled post-creation). | T104 | P0 | 2 SP | Pointing the adapter at a non-lock bucket fails fast with a WormError; lock-enabled is asserted, not trusted. | `#worm-immutability` `#external-dep` | W-1, W-2, A-EV1 | T161, T164 |
+| **EDAM-T104-H4** | Mandatory/default retention policy | Enforce a default/minimum COMPLIANCE retention (or require `retainUntil` for the writer) so no object can be written unlocked. | T104 | P1 | 2 SP | A write without `retainUntil` either applies the default retention or is rejected; no "no-lock" object is producible by the writer. | `#worm-immutability` | W-2, A-EV1 | T164 |
+| **EDAM-T104-H5** | Store-level enforcement tests | Add integration tests that **bypass the adapter pre-check** (call the raw client) and assert MinIO returns 403 on (a) version-scoped delete of a locked object, (b) earlier-date retention, and (c) delete under legal hold; add a no-`retainUntil` test documenting/closing the gap. | T104, H1–H4 | P0 | 3 SP | W-3/W-7/shortening are proven at the **store** level (MinIO 403), not via the adapter guard. | `#worm-immutability` `#security` | WV-8, A-EV8, A-EV11 | T162, T164 |
+
+Secondary (review M/L items, folded in): **M4** narrow `exists()` to treat only `NoSuchKey` as absent; **L1** pin `minio` to an exact version + image digest, wrap the legal-hold runtime quirk in a typed guard. (Tracked under H1–H5 scope; not separately scheduled.)
+
+### 13.2 Finding → Risk → Sign-off-prerequisite map
+
+| Review finding | Risk | Closed by | Sign-off prerequisite (T160–T164) |
+|---|---|---|---|
+| **H1** single privileged credential; runtime-bypassable role model | **R1** compromised Domain-B process hides/supersedes evidence at the read path | EDAM-T104-H1 | **T164** must verify INV-EV-1 against per-role credentials (writer credential proven incapable of mutation) |
+| **H2** delete-marker hide; "final authority" comment wrong | **R1** | EDAM-T104-H2 | **T162** delete-drill must show MinIO 403 (store-level), not adapter pre-check |
+| **H3** object-lock-enabled not verified | **R2** non-lock bucket → silently mutable evidence | EDAM-T104-H3 | **T161** live harness must boot against a verified-lock bucket; **T164** asserts lock config |
+| **H4** `retainUntil` optional → no-lock writes | **R2** | EDAM-T104-H4 | **T164** asserts no unlocked object is producible |
+| **H5** "blocks deletion/shorten" verified via adapter guard, not MinIO | **R3** false confidence (green tests imply MinIO enforcement) | EDAM-T104-H5 | **T162** tamper/deletion drills must exercise **store-level** enforcement |
+
+### 13.3 Gating statement
+The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
+
+---
+
 *Backlog / planning only — no code, no architecture or contract modification. Derived from the Sprint-2 Implementation Plan; implements the frozen WORM Evidence Segment & Anchoring Specification v1. Dashboard, Risk Engine, business Projection DB, and reversal remain out of scope.*
