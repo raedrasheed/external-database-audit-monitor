@@ -53,7 +53,28 @@ function buildCompleteness(c: NormalizedCompleteness): Record<string, unknown> {
   if (c.consumed_gtid_set !== undefined) out.consumed_gtid_set = c.consumed_gtid_set;
   if (c.heartbeat_ts !== undefined) out.heartbeat_ts = c.heartbeat_ts;
   if (c.snapshot_phase !== undefined) out.snapshot_phase = c.snapshot_phase;
+  // Snapshot identity / coverage (CCE-AMD-001 Rev 4). Emitted only when present
+  // so existing cce-1.0 streaming events serialize byte-unchanged.
+  if (c.snapshot_epoch_id !== undefined) out.snapshot_epoch_id = c.snapshot_epoch_id;
+  if (c.snapshot_coverage !== undefined) out.snapshot_coverage = c.snapshot_coverage;
   return out;
+}
+
+const REAL_OFFSET_KEYS = ['gtid', 'lsn', 'scn', 'resume_token'] as const;
+
+/**
+ * Authoritative schema version (CCE-AMD-001 Rev 4): an offset with a non-empty
+ * real engine key is a streaming/log event => `cce-1.0` (byte-unchanged); a
+ * binlog-only offset is a snapshot read => `cce-1.1`. This is the exact same
+ * predicate the V16 schema guard uses, so the version and the offset shape can
+ * never disagree.
+ */
+function cceSchemaVersion(offset: NormalizedTransaction['offset']): 'cce-1.0' | 'cce-1.1' {
+  const hasRealKey = REAL_OFFSET_KEYS.some((k) => {
+    const v = offset[k];
+    return typeof v === 'string' && v.length > 0;
+  });
+  return hasRealKey ? 'cce-1.0' : 'cce-1.1';
 }
 
 function buildActor(a: NormalizedActor): Record<string, unknown> {
@@ -122,7 +143,7 @@ export function buildCce(input: NormalizedTransaction, opts: BuildOptions = {}):
   // The CCE core = envelope minus `evidence` (CCE §8). event_hash is over its
   // canonical serialization.
   const core = {
-    schema_version: 'cce-1.0' as const,
+    schema_version: cceSchemaVersion(input.offset),
     envelope_id,
     kind: 'transaction' as const,
     source: input.source,

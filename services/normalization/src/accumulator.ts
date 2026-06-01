@@ -6,6 +6,7 @@
 // so each still becomes one transaction. flush() returns any buffered group.
 
 import type { NormalizedChange, NormalizedChangeEvent, CceOffset, SnapshotPhase } from '@edam/cce-model';
+import { snapshotEpochId, snapshotTxId } from '@edam/canonical';
 
 export interface GroupedTransaction {
   source: NormalizedChangeEvent['source'];
@@ -14,13 +15,26 @@ export interface GroupedTransaction {
   ingest_ts: string;
   offset: CceOffset;
   snapshot_phase: SnapshotPhase;
+  /** Snapshot epoch identity (CCE-AMD-001 Rev 4); set only for snapshot reads. */
+  snapshot_epoch_id?: string;
   changes: NormalizedChange[];
 }
 
-function effectiveTxId(ev: NormalizedChangeEvent): string {
-  if (ev.tx_id) return ev.tx_id;
-  // No GTID (snapshot read): deterministic synthetic, one transaction per event.
-  return `snapshot:${ev.offset.binlog_file ?? ''}:${ev.offset.binlog_pos ?? ''}`;
+/**
+ * Deterministic, capture-sourced identity for a snapshot read (no GTID). The
+ * epoch is content-addressed over the watermark + the capture-sourced
+ * snapshot-start timestamp (commit_ts, falling back to the trusted ingest time);
+ * the tx_id is a collision-free canonical-tuple form (CCE-AMD-001 Rev 4 §2/§3).
+ */
+function snapshotIdentity(ev: NormalizedChangeEvent): { txId: string; epochId: string } {
+  const epochId = snapshotEpochId({
+    db_id: ev.source.db_id,
+    server_uuid: ev.source.server_uuid,
+    snapshot_start_binlog_file: ev.offset.binlog_file ?? '',
+    snapshot_start_binlog_pos: ev.offset.binlog_pos ?? 0,
+    snapshot_start_ts: ev.commit_ts ?? ev.ingest_ts,
+  });
+  return { txId: snapshotTxId(epochId, ev.change.object), epochId };
 }
 
 export class TransactionAccumulator {
@@ -29,7 +43,8 @@ export class TransactionAccumulator {
 
   /** Add a mapped event; returns any completed group(s) (flushed on tx change). */
   add(ev: NormalizedChangeEvent): GroupedTransaction[] {
-    const key = effectiveTxId(ev);
+    const snap = ev.tx_id ? null : snapshotIdentity(ev);
+    const key = ev.tx_id ?? snap!.txId;
     const completed: GroupedTransaction[] = [];
 
     if (this.group && key !== this.key) {
@@ -46,6 +61,7 @@ export class TransactionAccumulator {
         ingest_ts: ev.ingest_ts,
         offset: ev.offset,
         snapshot_phase: ev.snapshot_phase,
+        ...(snap ? { snapshot_epoch_id: snap.epochId } : {}),
         changes: [],
       };
     }

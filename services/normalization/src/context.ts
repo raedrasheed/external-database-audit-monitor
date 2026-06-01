@@ -11,6 +11,7 @@
 import type {
   GroupedTransaction,
 } from './accumulator.js';
+import { snapshotConsumedOffsetKey } from '@edam/canonical';
 import type {
   FidelityState,
   NormalizedActor,
@@ -77,24 +78,49 @@ export function assembleTransaction(
   completeness: NormalizedCompleteness | null,
   actor: NormalizedActor,
 ): NormalizedTransaction {
+  // Snapshot reads always carry the epoch-based completeness (snapshot offsets
+  // are excluded from GTID-gap analysis; their coverage is the epoch + handoff),
+  // so a streaming completeness provider never strips the snapshot_epoch_id.
+  const effectiveCompleteness = group.snapshot_epoch_id
+    ? defaultCompleteness(group)
+    : (completeness ?? defaultCompleteness(group));
+  // Fidelity worst-cases against the SAME completeness the event carries, so a
+  // healthy snapshot (no gap) is not spuriously degraded; streaming is unchanged.
+  const fidelityCompleteness = group.snapshot_epoch_id ? effectiveCompleteness : completeness;
   return {
     source: group.source,
     transaction: {
       tx_id: group.tx_id,
-      // commit_ts is informational; fall back to the trusted ingest time when
-      // the source did not provide it (never fabricated forward).
+      // commit_ts is capture-sourced (source snapshot ts_ms for snapshot reads);
+      // fall back to the trusted ingest time when the source did not provide it.
       commit_ts: group.commit_ts ?? group.ingest_ts,
       ingest_ts: group.ingest_ts,
     },
     offset: group.offset,
-    fidelity: combineFidelity(fidelity, completeness),
-    completeness:
-      completeness ?? {
-        consumed_offset_key: group.tx_id,
-        gap_detected: false,
-        snapshot_phase: group.snapshot_phase,
-      },
+    fidelity: combineFidelity(fidelity, fidelityCompleteness),
+    completeness: effectiveCompleteness,
     actor,
     changes: group.changes,
+  };
+}
+
+/**
+ * Completeness when no attested record is available. For a snapshot read the
+ * key is the epoch (CCE-AMD-001 Rev 4 §4) and the snapshot_epoch_id is carried;
+ * for streaming the tx_id stands in (unchanged behavior).
+ */
+function defaultCompleteness(group: GroupedTransaction): NormalizedCompleteness {
+  if (group.snapshot_epoch_id) {
+    return {
+      consumed_offset_key: snapshotConsumedOffsetKey(group.snapshot_epoch_id),
+      gap_detected: false,
+      snapshot_phase: group.snapshot_phase,
+      snapshot_epoch_id: group.snapshot_epoch_id,
+    };
+  }
+  return {
+    consumed_offset_key: group.tx_id,
+    gap_detected: false,
+    snapshot_phase: group.snapshot_phase,
   };
 }

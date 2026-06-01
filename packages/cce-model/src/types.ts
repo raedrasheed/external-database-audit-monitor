@@ -65,12 +65,27 @@ export interface NormalizedFidelity {
   degraded_reason?: string | null;
 }
 
+export type SnapshotCoverageStatus = 'in_progress' | 'complete' | 'interrupted' | 'incomplete';
+
+export interface SnapshotCoverage {
+  epoch_id?: string;
+  table?: string;
+  expected_rows?: number | null;
+  expected_is_estimate?: boolean;
+  emitted_rows?: number;
+  status: SnapshotCoverageStatus;
+}
+
 export interface NormalizedCompleteness {
   consumed_offset_key: string;
   consumed_gtid_set?: string;
   heartbeat_ts?: string;
   gap_detected: boolean;
   snapshot_phase?: SnapshotPhase;
+  /** Snapshot epoch identity (CCE-AMD-001 Rev 4); set on snapshot/handoff events. */
+  snapshot_epoch_id?: string;
+  /** Optional per-table snapshot coverage attestation (Rev 4 §8). */
+  snapshot_coverage?: SnapshotCoverage;
 }
 
 export interface NormalizedActor {
@@ -128,8 +143,10 @@ export interface CceEvidence {
   row_hash: string;
 }
 
+export type CceSchemaVersion = 'cce-1.0' | 'cce-1.1';
+
 export interface Cce {
-  schema_version: 'cce-1.0';
+  schema_version: CceSchemaVersion;
   envelope_id: string;
   kind: 'transaction';
   source: NormalizedTransaction['source'];
