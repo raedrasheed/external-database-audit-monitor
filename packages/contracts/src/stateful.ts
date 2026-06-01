@@ -9,6 +9,8 @@
 //   V12 event_hash / row_hash recomputation (single object, when evidence present)
 //   V13 anchor_ref structural completeness  (single object, when anchored)
 //   V16 binlog-only offset positive guard (single object; Rev 4 §5)
+//   V17 snapshot identity (epoch/tx_id/key derivation) (single object; Rev 4 §1/§3/§4)
+//   V18 snapshot coverage honesty -> fidelity (single object; Rev 4 §8, MED-2)
 //   V14 ingest_ts monotonic per stream   (stream — see CceStreamValidator)
 //   V15 duplicate envelope_id w/ differing event_hash (stream)
 
@@ -147,6 +149,32 @@ export function validateCceStateful(cce: Cce): ValidationError[] {
       if (cce.completeness?.consumed_offset_key !== expectedKey) {
         errors.push(err('V17', '/completeness/consumed_offset_key',
           `snapshot consumed_offset_key must be ${expectedKey}`));
+      }
+    }
+  }
+
+  // V18 — snapshot coverage honesty (CCE-AMD-001 Rev 4 §4/§8, MED-2). Incomplete
+  // / interrupted / unknown coverage must NOT be reported HEALTHY and must carry
+  // a non-empty degraded_reason. This composes with (does not replace) the
+  // fidelity schema rule "state != HEALTHY => require degraded_reason": V18
+  // forces the non-HEALTHY state, the schema then mandates the reason, and V18
+  // additionally requires it be non-empty.
+  const cov = cce.completeness?.snapshot_coverage as
+    | { status?: string; expected_rows?: number | null }
+    | undefined;
+  if (cov && typeof cov === 'object') {
+    const unknown = cov.expected_rows === null || cov.expected_rows === undefined;
+    const problematic = cov.status === 'incomplete' || cov.status === 'interrupted' || unknown;
+    if (problematic) {
+      const label = unknown ? 'unknown' : String(cov.status);
+      if (cce.fidelity?.state === 'HEALTHY') {
+        errors.push(err('V18', '/fidelity/state',
+          `snapshot coverage ${label} must not be reported HEALTHY`));
+      }
+      const reason = cce.fidelity?.degraded_reason;
+      if (typeof reason !== 'string' || reason.length === 0) {
+        errors.push(err('V18', '/fidelity/degraded_reason',
+          `snapshot coverage ${label} requires a non-empty degraded_reason`));
       }
     }
   }

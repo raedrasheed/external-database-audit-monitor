@@ -80,6 +80,34 @@ describe('validateCceFull', () => {
     expect(validateCceStateful(ok).some((e) => e.rule === 'V17')).toBe(false);
   });
 
+  it('V18: incomplete coverage reported HEALTHY is rejected', () => {
+    const bad = withDerivedId(base);
+    bad.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: 1000, emitted_rows: 990, status: 'incomplete' };
+    // base fidelity is HEALTHY with no degraded_reason
+    const rules = validateCceStateful(bad).map((e) => e.rule);
+    expect(rules).toContain('V18');
+  });
+
+  it('V18: unknown coverage (expected_rows null) must not be HEALTHY', () => {
+    const bad = withDerivedId(base);
+    bad.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: null, emitted_rows: 990, status: 'in_progress' };
+    expect(validateCceStateful(bad).some((e) => e.rule === 'V18')).toBe(true);
+  });
+
+  it('V18: incomplete coverage with DEGRADED + reason composes cleanly', () => {
+    const ok = withDerivedId(base);
+    ok.fidelity.state = 'DEGRADED';
+    ok.fidelity.degraded_reason = 'snapshot coverage incomplete: donations 990/1000';
+    ok.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: 1000, emitted_rows: 990, status: 'incomplete' };
+    expect(validateCceStateful(ok).some((e) => e.rule === 'V18')).toBe(false);
+  });
+
+  it('V18: complete coverage permits HEALTHY', () => {
+    const ok = withDerivedId(base);
+    ok.completeness.snapshot_coverage = { table: 'kafel.donations', expected_rows: 1000, emitted_rows: 1000, status: 'complete' };
+    expect(validateCceStateful(ok).some((e) => e.rule === 'V18')).toBe(false);
+  });
+
   it('V4: rejects statement_count != changes.length', () => {
     const bad = withDerivedId(base);
     bad.transaction.statement_count = 2;
