@@ -20,3 +20,13 @@ export {
   ConsoleDlqAlarmSink,
 } from './alarms.js';
 export { DlqService, type DlqServiceDeps } from './service.js';
+export {
+  type DlqInspector,
+  StoreDlqInspector,
+  type ReplayRequest,
+  type ReplayStatus,
+  type ReplayResult,
+  type ReplayExecutor,
+  ReplayNotImplementedError,
+  UnimplementedReplayExecutor,
+} from './replay.js';
