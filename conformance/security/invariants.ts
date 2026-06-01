@@ -25,10 +25,6 @@ export interface InvariantResult extends InvariantOutcome {
   spec_ref: string;
 }
 
-const HEALTHY_CFG = {
-  engine: 'mysql' as const, log_bin: 'ON', binlog_format: 'ROW', binlog_row_image: 'FULL',
-  gtid_mode: 'ON', gtid_strict_mode: null, binlog_expire_logs_seconds: 604800, server_uuid: UUID,
-};
 const NULL_CFG = {
   engine: 'mysql' as const, log_bin: null, binlog_format: null, binlog_row_image: null,
   gtid_mode: null, gtid_strict_mode: null, binlog_expire_logs_seconds: null, server_uuid: null,
