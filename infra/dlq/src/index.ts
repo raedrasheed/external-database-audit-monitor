@@ -9,3 +9,14 @@ export {
   InMemoryDlqStore,
   PgDlqStore,
 } from './store.js';
+export { classifyFailure, DEFAULT_RETRYABLE, type Classification } from './classify.js';
+export { decideStatus, DEFAULT_RETRY_POLICY, type RetryPolicy } from './retry.js';
+export {
+  type DlqAlarm,
+  type DlqAlarmKind,
+  type DlqAlarmSeverity,
+  type DlqAlarmSink,
+  InMemoryDlqAlarmSink,
+  ConsoleDlqAlarmSink,
+} from './alarms.js';
+export { DlqService, type DlqServiceDeps } from './service.js';
