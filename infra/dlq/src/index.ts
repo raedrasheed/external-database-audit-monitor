@@ -30,3 +30,4 @@ export {
   ReplayNotImplementedError,
   UnimplementedReplayExecutor,
 } from './replay.js';
+export { collectMetrics, DlqDepthMonitor, type DlqMetricsSnapshot } from './metrics.js';
