@@ -1,7 +1,7 @@
 // Conformance cases (Epic E6 / EDAM-T042..T046, mandate B).
 // Each case exercises the REAL frozen implementations.
 
-import { buildCce, type NormalizedChange, type NormalizedTransaction } from '@edam/cce-model';
+import { buildCce, compareCce, type NormalizedChange, type NormalizedTransaction } from '@edam/cce-model';
 import type { ConformanceCase, ConformanceOutcome } from './types.js';
 
 const UUID = '3e11fa47-71ca-11e1-9e33-c80aa9429562';
@@ -65,4 +65,45 @@ export const C3: ConformanceCase = {
   },
 };
 
-export const CASES: ConformanceCase[] = [C3];
+// ---------------------------------------------------------------------------
+// C-4: multi-row transaction -> one envelope, contiguous seq, statement_count.
+// ---------------------------------------------------------------------------
+export const C4: ConformanceCase = {
+  id: 'C-4',
+  title: 'Multi-row transaction grouping',
+  spec_ref: 'CCE-v1-Specification.md §4.1, §6.2',
+  run(): ConformanceOutcome {
+    const cce = buildCce(
+      txWith(10, [
+        { operation: 'UPDATE', object: don(1), before: { id: 1, amount: '1.00' }, after: { id: 1, amount: '2.00' } },
+        { operation: 'INSERT', object: don(2), before: null, after: { id: 2, amount: '3.00' } },
+        { operation: 'DELETE', object: don(3), before: { id: 3, amount: '4.00' }, after: null },
+      ]),
+    );
+    if (cce.transaction.statement_count !== 3) return fail(`statement_count ${cce.transaction.statement_count} != 3`);
+    const seqs = cce.changes.map((c) => c.seq);
+    if (JSON.stringify(seqs) !== JSON.stringify([0, 1, 2])) return fail(`seq ${JSON.stringify(seqs)} not contiguous from 0`);
+    return ok('Three row changes grouped into one envelope; seq 0..2; statement_count=3.');
+  },
+};
+
+// ---------------------------------------------------------------------------
+// C-5: deterministic global order — equal commit_ts tie-broken by offset key.
+// ---------------------------------------------------------------------------
+export const C5: ConformanceCase = {
+  id: 'C-5',
+  title: 'Deterministic ordering on equal commit_ts',
+  spec_ref: 'CCE-v1-Specification.md §4.2',
+  run(): ConformanceOutcome {
+    const a = buildCce(txWith(5, [{ operation: 'UPDATE', object: don(1), before: { id: 1, amount: '1.00' }, after: { id: 1, amount: '2.00' } }]));
+    const b = buildCce(txWith(9, [{ operation: 'UPDATE', object: don(1), before: { id: 1, amount: '2.00' }, after: { id: 1, amount: '3.00' } }]));
+    // Same commit_ts (from txWith); GTID seq 5 < 9 must order a before b.
+    if (a.transaction.commit_ts !== b.transaction.commit_ts) return fail('commit_ts not equal — test setup wrong');
+    if (!(compareCce(a, b) < 0 && compareCce(b, a) > 0 && compareCce(a, a) === 0)) {
+      return fail('compareCce did not order by GTID sequence on equal commit_ts');
+    }
+    return ok('Equal commit_ts tie-broken deterministically by GTID sequence (5<9).');
+  },
+};
+
+export const CASES: ConformanceCase[] = [C3, C4, C5];
