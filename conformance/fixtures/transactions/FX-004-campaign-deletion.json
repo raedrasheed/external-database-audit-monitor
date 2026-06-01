@@ -1,0 +1,35 @@
+{
+  "fixture_id": "FX-004-campaign-deletion",
+  "description": "DELETE removes a campaign that has donations (CCE Appendix C.4).",
+  "conformance_refs": ["C-3"],
+  "source": {
+    "db_id": "kafel-dev-mysql",
+    "engine": "mysql",
+    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
+    "schema": "kafel"
+  },
+  "transaction": {
+    "tx_id": "00000000-0000-0000-0000-0000000000aa:4",
+    "commit_ts": "2026-06-01T03:41:00.220Z"
+  },
+  "input_sql": [
+    "DELETE FROM kafel.campaigns WHERE id = 88;"
+  ],
+  "expected": {
+    "operation": "DELETE",
+    "object": { "schema": "kafel", "name": "campaigns", "primary_key": { "id": 88 } },
+    "before": { "id": 88, "title": "Winter Relief", "status": "active", "total_raised": "45200.00" },
+    "after": null,
+    "field_changes": [
+      { "path": ["title"], "old": "Winter Relief", "new": null, "data_type": "string", "changed": true, "sensitive": false },
+      { "path": ["status"], "old": "active", "new": null, "data_type": "string", "changed": true, "sensitive": false },
+      { "path": ["total_raised"], "old": "45200.00", "new": null, "data_type": "decimal", "changed": true, "sensitive": false }
+    ]
+  },
+  "golden": {
+    "status": "PENDING_CANONICAL",
+    "schema_version": "cce-1.0",
+    "envelope_id": null,
+    "event_hash": null
+  }
+}

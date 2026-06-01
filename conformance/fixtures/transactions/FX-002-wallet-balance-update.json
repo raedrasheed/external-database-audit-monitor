@@ -1,0 +1,33 @@
+{
+  "fixture_id": "FX-002-wallet-balance-update",
+  "description": "UPDATE directly edits a wallet balance (CCE Appendix C.2).",
+  "conformance_refs": ["C-3"],
+  "source": {
+    "db_id": "kafel-dev-mysql",
+    "engine": "mysql",
+    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
+    "schema": "kafel"
+  },
+  "transaction": {
+    "tx_id": "00000000-0000-0000-0000-0000000000aa:2",
+    "commit_ts": "2026-06-01T22:14:03.001Z"
+  },
+  "input_sql": [
+    "UPDATE kafel.wallets SET balance = 9250.00 WHERE id = 4412;"
+  ],
+  "expected": {
+    "operation": "UPDATE",
+    "object": { "schema": "kafel", "name": "wallets", "primary_key": { "id": 4412 } },
+    "before": { "id": 4412, "user_id": 778, "balance": "250.00" },
+    "after": { "id": 4412, "user_id": 778, "balance": "9250.00" },
+    "field_changes": [
+      { "path": ["balance"], "old": "250.00", "new": "9250.00", "data_type": "decimal", "changed": true, "sensitive": false }
+    ]
+  },
+  "golden": {
+    "status": "PENDING_CANONICAL",
+    "schema_version": "cce-1.0",
+    "envelope_id": null,
+    "event_hash": null
+  }
+}

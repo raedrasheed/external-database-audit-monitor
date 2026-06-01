@@ -1,0 +1,33 @@
+{
+  "fixture_id": "FX-005-permission-change",
+  "description": "UPDATE changes a user's role assignment (CCE Appendix C.5).",
+  "conformance_refs": ["C-3"],
+  "source": {
+    "db_id": "kafel-dev-mysql",
+    "engine": "mysql",
+    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
+    "schema": "kafel"
+  },
+  "transaction": {
+    "tx_id": "00000000-0000-0000-0000-0000000000aa:5",
+    "commit_ts": "2026-06-01T12:00:00.000Z"
+  },
+  "input_sql": [
+    "UPDATE kafel.user_roles SET role_id = 1 WHERE user_id = 778 AND role_id = 2;"
+  ],
+  "expected": {
+    "operation": "UPDATE",
+    "object": { "schema": "kafel", "name": "user_roles", "primary_key": { "user_id": 778, "role_id": 2 } },
+    "before": { "user_id": 778, "role_id": 2 },
+    "after": { "user_id": 778, "role_id": 1 },
+    "field_changes": [
+      { "path": ["role_id"], "old": 2, "new": 1, "data_type": "int", "changed": true, "sensitive": false }
+    ]
+  },
+  "golden": {
+    "status": "PENDING_CANONICAL",
+    "schema_version": "cce-1.0",
+    "envelope_id": null,
+    "event_hash": null
+  }
+}

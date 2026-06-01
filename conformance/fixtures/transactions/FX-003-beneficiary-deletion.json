@@ -1,0 +1,36 @@
+{
+  "fixture_id": "FX-003-beneficiary-deletion",
+  "description": "DELETE removes a beneficiary holding an active balance; sensitive fields masked (CCE Appendix C.3).",
+  "conformance_refs": ["C-3", "C-7"],
+  "source": {
+    "db_id": "kafel-dev-mysql",
+    "engine": "mysql",
+    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
+    "schema": "kafel"
+  },
+  "transaction": {
+    "tx_id": "00000000-0000-0000-0000-0000000000aa:3",
+    "commit_ts": "2026-06-01T11:05:10.500Z"
+  },
+  "input_sql": [
+    "DELETE FROM kafel.beneficiaries WHERE id = 5567;"
+  ],
+  "expected": {
+    "operation": "DELETE",
+    "object": { "schema": "kafel", "name": "beneficiaries", "primary_key": { "id": 5567 } },
+    "before": { "id": 5567, "name": "***", "national_id": "***", "balance": "1320.00", "status": "active" },
+    "after": null,
+    "field_changes": [
+      { "path": ["name"], "old": "***", "new": null, "data_type": "string", "changed": true, "sensitive": true, "masked": true },
+      { "path": ["national_id"], "old": "***", "new": null, "data_type": "string", "changed": true, "sensitive": true, "masked": true },
+      { "path": ["balance"], "old": "1320.00", "new": null, "data_type": "decimal", "changed": true, "sensitive": false },
+      { "path": ["status"], "old": "active", "new": null, "data_type": "string", "changed": true, "sensitive": false }
+    ]
+  },
+  "golden": {
+    "status": "PENDING_CANONICAL",
+    "schema_version": "cce-1.0",
+    "envelope_id": null,
+    "event_hash": null
+  }
+}

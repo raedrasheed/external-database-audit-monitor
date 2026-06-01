@@ -1,0 +1,33 @@
+{
+  "fixture_id": "FX-001-donation-amount-after-approval",
+  "description": "UPDATE raises a donation amount while status is 'approved' (CCE Appendix C.1).",
+  "conformance_refs": ["C-3", "C-10"],
+  "source": {
+    "db_id": "kafel-dev-mysql",
+    "engine": "mysql",
+    "server_uuid": "00000000-0000-0000-0000-0000000000aa",
+    "schema": "kafel"
+  },
+  "transaction": {
+    "tx_id": "00000000-0000-0000-0000-0000000000aa:1",
+    "commit_ts": "2026-06-01T10:22:31.114Z"
+  },
+  "input_sql": [
+    "UPDATE kafel.donations SET amount = 100000.00 WHERE id = 90211;"
+  ],
+  "expected": {
+    "operation": "UPDATE",
+    "object": { "schema": "kafel", "name": "donations", "primary_key": { "id": 90211 } },
+    "before": { "id": 90211, "amount": "100.00", "status": "approved" },
+    "after": { "id": 90211, "amount": "100000.00", "status": "approved" },
+    "field_changes": [
+      { "path": ["amount"], "old": "100.00", "new": "100000.00", "data_type": "decimal", "changed": true, "sensitive": false }
+    ]
+  },
+  "golden": {
+    "status": "PENDING_CANONICAL",
+    "schema_version": "cce-1.0",
+    "envelope_id": null,
+    "event_hash": null
+  }
+}

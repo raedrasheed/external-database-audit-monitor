@@ -1,0 +1,10 @@
+{
+  "name": "@edam/conformance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "EDAM conformance fixtures and harness (EDAM-T050)",
+  "scripts": {
+    "pin": "tsx scripts/pin-golden-values.ts"
+  }
+}
