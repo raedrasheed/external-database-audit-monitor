@@ -90,3 +90,12 @@ export function validate(schemaId: SchemaId, data: unknown): ValidationResult {
 export function validateCce(data: unknown): ValidationResult {
   return validate('cce-1.1', data);
 }
+
+/**
+ * Validate a Snapshot Epoch Manifest (CCE-AMD-001 Rev 4 §3). This is a COMPANION
+ * record — not a CCE — so it is validated against its own schema, never against
+ * the CCE change-event schema.
+ */
+export function validateSnapshotEpochManifest(data: unknown): ValidationResult {
+  return validate('snapshot-epoch-manifest-1.0', data);
+}

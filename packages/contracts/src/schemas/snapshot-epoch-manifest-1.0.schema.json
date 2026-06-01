@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/snapshot-epoch-manifest-1.0.schema.json",
+  "title": "Snapshot Epoch Manifest v1 (EDAM companion record)",
+  "type": "object",
+  "required": ["kind","schema_version","epoch_id","db_id","server_uuid","snapshot_start_watermark","snapshot_start_ts","tables","supersedes","evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "snapshot_epoch_manifest" },
+    "schema_version": { "const": "edam-companion-1.0" },
+    "epoch_id": { "type": "string", "pattern": "^snap-[0-9a-f]{16}$" },
+    "db_id": { "type": "string", "minLength": 1 },
+    "server_uuid": { "type": "string", "minLength": 1 },
+    "snapshot_start_watermark": {
+      "type": "object",
+      "required": ["binlog_file","binlog_pos"],
+      "additionalProperties": false,
+      "properties": {
+        "binlog_file": { "type": "string", "minLength": 1 },
+        "binlog_pos": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "snapshot_start_ts": { "type": "string", "format": "date-time" },
+    "handoff_gtid": { "type": ["string","null"] },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["table","expected_rows","emitted_rows","status"],
+        "additionalProperties": false,
+        "properties": {
+          "table": { "type": "string", "minLength": 1 },
+          "expected_rows": { "type": ["integer","null"], "minimum": 0 },
+          "expected_is_estimate": { "type": "boolean" },
+          "emitted_rows": { "type": "integer", "minimum": 0 },
+          "status": { "type": "string", "enum": ["in_progress","complete","interrupted","incomplete"] }
+        }
+      }
+    },
+    "supersedes": { "type": ["string","null"], "pattern": "^snap-[0-9a-f]{16}$" },
+    "evidence": {
+      "type": "object",
+      "required": ["manifest_hash","row_hash"],
+      "additionalProperties": false,
+      "properties": {
+        "manifest_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "prev_row_hash": { "type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+        "row_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

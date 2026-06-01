@@ -37,13 +37,14 @@ function frozenSchema(mdFile: string, $id: string): unknown {
 }
 
 describe('vendored schemas', () => {
-  it('exposes the four frozen schema ids', () => {
+  it('exposes the registered schema ids (incl. cce-1.1 + snapshot-epoch-manifest-1.0)', () => {
     expect(SCHEMA_IDS.sort()).toEqual([
       'cce-1.0',
       'cce-1.1',
       'db-audit-event-1.0',
       'execution-result-1.0',
       'reversal-directive-1.0',
+      'snapshot-epoch-manifest-1.0',
     ]);
   });
 
@@ -67,6 +68,9 @@ describe('vendored schemas', () => {
     );
     expect(SCHEMAS['db-audit-event-1.0']).toEqual(
       frozenSchema('EDAM-Companion-Contracts.md', 'https://edam.spec/db-audit-event-1.0.schema.json'),
+    );
+    expect(SCHEMAS['snapshot-epoch-manifest-1.0']).toEqual(
+      frozenSchema('EDAM-Companion-Contracts.md', 'https://edam.spec/snapshot-epoch-manifest-1.0.schema.json'),
     );
   });
 });

@@ -775,4 +775,78 @@ Audit plugin was disabled during the window → tamper indicator → `unattribut
 
 ---
 
-*End of EDAM companion contracts. Contract design only — no implementation code. All prior documents remain unmodified, and all three contracts are compatible with Canonical Change Event v1.*
+# PART H — Snapshot Epoch Manifest v1 (ratified via CCE-AMD-001 Rev 4)
+
+## H.1 Purpose
+The **Snapshot Epoch Manifest** is the companion record that bounds and self-describes one MySQL/MariaDB snapshot epoch (CCE-AMD-001 Rev 4 §3/§9). It is emitted **once per epoch at handoff** (snapshot→stream) and records the epoch's watermark, the capture-sourced snapshot-start timestamp, per-table coverage, and the prior epoch it supersedes.
+
+It is a **companion record, NOT a CCE.** Its `kind` is `snapshot_epoch_manifest` (the CCE `kind` is fixed `transaction`), and it is versioned in the companion namespace (`edam-companion-1.0`), so the CCE major-version gate and the CCE change-event schema never apply to it. It chains into the **same WORM hash chain** as CCEs (`manifest_hash` + `row_hash`), making the epoch boundary tamper-evident and ordered relative to the change events. Schema id: `snapshot-epoch-manifest-1.0`.
+
+## H.2 Supersession semantics (read-model)
+WORM is append-only (INV-3): epochs are never deleted or rewritten. "Current vs superseded" is a **read-model** concept derived from the immutable manifests:
+- **Epoch 1 / Epoch 2:** distinct `epoch_id`, ordered by `snapshot_start_watermark` then `handoff_gtid`.
+- **Current baseline:** the epoch with the greatest watermark whose `handoff_gtid` connects to the live stream (the projection maintains a `current_epoch` pointer).
+- **Historical:** any non-current epoch. **Superseded:** a historical epoch named by a later manifest's `supersedes` (or any epoch with a strictly smaller watermark than `current_epoch`).
+
+## H.3 JSON Schema (`snapshot-epoch-manifest-1.0`)
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/snapshot-epoch-manifest-1.0.schema.json",
+  "title": "Snapshot Epoch Manifest v1 (EDAM companion record)",
+  "type": "object",
+  "required": ["kind","schema_version","epoch_id","db_id","server_uuid","snapshot_start_watermark","snapshot_start_ts","tables","supersedes","evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "snapshot_epoch_manifest" },
+    "schema_version": { "const": "edam-companion-1.0" },
+    "epoch_id": { "type": "string", "pattern": "^snap-[0-9a-f]{16}$" },
+    "db_id": { "type": "string", "minLength": 1 },
+    "server_uuid": { "type": "string", "minLength": 1 },
+    "snapshot_start_watermark": {
+      "type": "object",
+      "required": ["binlog_file","binlog_pos"],
+      "additionalProperties": false,
+      "properties": {
+        "binlog_file": { "type": "string", "minLength": 1 },
+        "binlog_pos": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "snapshot_start_ts": { "type": "string", "format": "date-time" },
+    "handoff_gtid": { "type": ["string","null"] },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["table","expected_rows","emitted_rows","status"],
+        "additionalProperties": false,
+        "properties": {
+          "table": { "type": "string", "minLength": 1 },
+          "expected_rows": { "type": ["integer","null"], "minimum": 0 },
+          "expected_is_estimate": { "type": "boolean" },
+          "emitted_rows": { "type": "integer", "minimum": 0 },
+          "status": { "type": "string", "enum": ["in_progress","complete","interrupted","incomplete"] }
+        }
+      }
+    },
+    "supersedes": { "type": ["string","null"], "pattern": "^snap-[0-9a-f]{16}$" },
+    "evidence": {
+      "type": "object",
+      "required": ["manifest_hash","row_hash"],
+      "additionalProperties": false,
+      "properties": {
+        "manifest_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "prev_row_hash": { "type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+        "row_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    }
+  }
+}
+```
+
+`manifest_hash` is computed over the canonical manifest core (record minus `evidence`), mirroring the CCE `event_hash` discipline (INV-4); `row_hash = H(prev_row_hash ‖ manifest_hash)` chains it into the WORM evidence chain (INV-3).
+
+---
+
+*End of EDAM companion contracts. Contract design only — no implementation code. All prior documents remain unmodified; PART H was ratified via CCE-AMD-001 Rev 4. All contracts are compatible with Canonical Change Event v1.*

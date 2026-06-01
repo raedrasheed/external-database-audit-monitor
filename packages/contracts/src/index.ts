@@ -4,6 +4,7 @@ export { SCHEMAS, SCHEMA_IDS, type SchemaId } from './schemas/index.js';
 export {
   validate,
   validateCce,
+  validateSnapshotEpochManifest,
   type ValidationError,
   type ValidationResult,
 } from './validator.js';
