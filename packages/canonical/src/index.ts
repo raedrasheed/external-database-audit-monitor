@@ -5,3 +5,4 @@
 
 export { CanonicalError } from './errors.js';
 export { serializeCanonical, compareByCodePoint } from './serialize.js';
+export { sha256Hex, eventHash, hashValue, assertHashToken, isHashToken } from './hash.js';
