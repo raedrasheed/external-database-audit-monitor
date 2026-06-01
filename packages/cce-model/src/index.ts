@@ -4,3 +4,4 @@ export { inferType, diffFields } from './diff.js';
 export { MASK, isSensitiveColumn, maskImage, maskFieldChanges } from './mask.js';
 export { buildCce, deriveEnvelopeId, CceBuildError, type BuildOptions } from './build.js';
 export { compareCce, orderCces } from './order.js';
+export { recomputeEventHash, verifyCce, type HashVerification } from './verify.js';
