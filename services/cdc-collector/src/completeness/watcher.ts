@@ -8,6 +8,7 @@
 
 import type { Engine } from '../engine.js';
 import type { SnapshotPhase } from '../adapters/types.js';
+import type { AlarmSink } from '../alarms.js';
 import { GtidSet, getCodec, type GtidCodec, type GtidInterval } from './gtid.js';
 
 export interface GapResult {
@@ -112,6 +113,36 @@ export class CompletenessWatcher {
       internal_gap_keys: internal,
       missing_below_watermark: missing,
     };
+  }
+
+  private readonly alarmedGaps = new Set<string>();
+
+  /**
+   * Compute the gap and raise a CRITICAL COMPLETENESS_GAP alarm for any NEW gap
+   * (deduplicated by signature so a persistent gap does not spam). A detected
+   * gap degrades completeness (gap_detected=true), which Normalization (E4)
+   * reflects as fidelity DEGRADED (EDAM v2 §4.3). INV-2: never forced false.
+   */
+  checkGap(sourceExecuted: string | null | undefined, alarms: AlarmSink, atIso: string): GapResult {
+    const result = this.computeGap(sourceExecuted);
+    if (!result.gap_detected) return result;
+
+    const signatures = [
+      ...result.internal_gap_keys.map((k) => `internal:${k}`),
+      ...result.missing_below_watermark.map((m) => `missing:${m.key}:${m.start}-${m.end}`),
+    ];
+    for (const sig of signatures) {
+      if (this.alarmedGaps.has(sig)) continue;
+      this.alarmedGaps.add(sig);
+      alarms.raise({
+        kind: 'COMPLETENESS_GAP',
+        severity: 'critical',
+        message: `GTID continuity gap detected (${sig}): a transaction may have been missed`,
+        at: atIso,
+        details: { db_id: this.opts.dbId, signature: sig },
+      });
+    }
+    return result;
   }
 }
 
