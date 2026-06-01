@@ -13,3 +13,6 @@ deploy/compose/**/data/
 conformance-report.json
 determinism-*.json
 coverage/
+no-write-path-proof.json
+secret-hygiene-proof.json
+invariant-report.json

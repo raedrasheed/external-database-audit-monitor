@@ -117,6 +117,9 @@ jobs:
 
   # No-write-path proof (Epic E6 / mandate C; pulls forward EDAM-T052):
   # scan provisioning + runtime source/config for monitored-DB write capability.
+  # Comprehensive no-write-path proof (Epic E8 / EDAM-T052): scan source +
+  # config + env + compose + deployment + CDC source user for monitored-DB
+  # write capability; emit a machine-verifiable proof artifact.
   no-write-proof:
     name: no-write-proof (INV-1)
     runs-on: ubuntu-latest
@@ -126,8 +129,12 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: npm install --no-audit --no-fund
-      - name: Assert no monitored-DB write path
-        run: npm run no-write-proof -- --check
+      - name: Assert no monitored-DB write path (+ emit proof)
+        run: npm run no-write-proof -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: no-write-path-proof
+          path: no-write-path-proof.json
 
   # Validate the dev Compose stack configuration (no full bring-up).
   compose-validate:
