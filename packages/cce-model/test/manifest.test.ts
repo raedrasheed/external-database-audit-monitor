@@ -1,6 +1,6 @@
 // Snapshot Epoch Manifest builder tests (CCE-AMD-001 Rev 4 §3/§9).
 import { describe, it, expect } from 'vitest';
-import { buildSnapshotEpochManifest, type SnapshotEpochManifestInput } from '../src/index.js';
+import { buildSnapshotEpochManifest, SnapshotEpochManifestError, type SnapshotEpochManifestInput } from '../src/index.js';
 import { validateSnapshotEpochManifest } from '@edam/contracts';
 
 const input: SnapshotEpochManifestInput = {
@@ -39,5 +39,9 @@ describe('buildSnapshotEpochManifest', () => {
 
   it('a CCE-shaped object is NOT a valid manifest (companion isolation)', () => {
     expect(validateSnapshotEpochManifest({ kind: 'transaction' }).valid).toBe(false);
+  });
+
+  it('throws SnapshotEpochManifestError on an invalid epoch_id', () => {
+    expect(() => buildSnapshotEpochManifest({ ...input, epoch_id: 'not-an-epoch' })).toThrow(SnapshotEpochManifestError);
   });
 });
