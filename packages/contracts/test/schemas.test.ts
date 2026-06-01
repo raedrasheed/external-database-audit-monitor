@@ -40,6 +40,7 @@ describe('vendored schemas', () => {
   it('exposes the four frozen schema ids', () => {
     expect(SCHEMA_IDS.sort()).toEqual([
       'cce-1.0',
+      'cce-1.1',
       'db-audit-event-1.0',
       'execution-result-1.0',
       'reversal-directive-1.0',
@@ -48,6 +49,7 @@ describe('vendored schemas', () => {
 
   it('all schemas are objects with the expected $id', () => {
     expect((SCHEMAS['cce-1.0'] as any).$id).toBe('https://edam.spec/cce-1.0.schema.json');
+    expect((SCHEMAS['cce-1.1'] as any).$id).toBe('https://edam.spec/cce-1.1.schema.json');
     expect((SCHEMAS['reversal-directive-1.0'] as any).$id).toBe(
       'https://edam.spec/reversal-directive-1.0.schema.json',
     );

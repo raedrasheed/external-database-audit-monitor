@@ -47,7 +47,9 @@ function compensateCceErrata(schema: Record<string, unknown>): void {
 
 function runtimeSchema(id: SchemaId): Record<string, unknown> {
   const schema = structuredClone(SCHEMAS[id]) as Record<string, unknown>;
-  if (id === 'cce-1.0') compensateCceErrata(schema);
+  // ERRATA-CCE-001 is carried verbatim into cce-1.1 (the amendment is additive
+  // and did not touch the change-item conditional), so compensate both.
+  if (id === 'cce-1.0' || id === 'cce-1.1') compensateCceErrata(schema);
   return schema;
 }
 
@@ -64,7 +66,7 @@ function getValidator(id: SchemaId): ReturnType<typeof ajv.compile> {
 
 function toError(id: SchemaId, e: ErrorObject): ValidationError {
   return {
-    rule: id === 'cce-1.0' ? classifyCceError(e) : 'SCHEMA',
+    rule: id === 'cce-1.0' || id === 'cce-1.1' ? classifyCceError(e) : 'SCHEMA',
     instancePath: e.instancePath,
     keyword: e.keyword,
     message: e.message ?? '',
@@ -79,7 +81,12 @@ export function validate(schemaId: SchemaId, data: unknown): ValidationResult {
   return { valid: false, errors: (v.errors ?? []).map((e) => toError(schemaId, e)) };
 }
 
-/** Convenience for the most common case. */
+/**
+ * Convenience for the most common case. The authoritative CCE validation
+ * schema is `cce-1.1` (CCE-AMD-001 Rev 4): a strict additive superset of
+ * `cce-1.0` that accepts every existing `cce-1.0` event and self-enforces the
+ * version/engine/phase scoping of the snapshot binlog-offset branch (V16).
+ */
 export function validateCce(data: unknown): ValidationResult {
-  return validate('cce-1.0', data);
+  return validate('cce-1.1', data);
 }

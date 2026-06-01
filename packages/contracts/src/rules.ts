@@ -10,12 +10,16 @@ import type { ErrorObject } from 'ajv';
 export type RuleId =
   | 'V1' | 'V2' | 'V3' | 'V4' | 'V5' | 'V6' | 'V7' | 'V8'
   | 'V9' | 'V10' | 'V11' | 'V12' | 'V13' | 'V14' | 'V15'
+  | 'V16' | 'V17' | 'V18'
   | 'VERSION_MAJOR' | 'SCHEMA';
 
 /** Classify a single ajv error against a CCE document to a §10 rule id. */
 export function classifyCceError(e: ErrorObject): RuleId {
   const p = e.instancePath || '';
   const missing = (e.params as { missingProperty?: string } | undefined)?.missingProperty;
+
+  // V17 — snapshot_epoch_id presence (cce-1.1; CCE-AMD-001 Rev 4 §1/§11).
+  if (p === '/completeness/snapshot_epoch_id' || missing === 'snapshot_epoch_id') return 'V17';
 
   if (p === '/schema_version') return 'V1';
   if (p === '/kind') return 'V2';
