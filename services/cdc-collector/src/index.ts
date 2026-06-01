@@ -56,6 +56,7 @@ async function main(): Promise<void> {
     handoff,
     lag,
     dbId: cfg.dbId,
+    // eslint-disable-next-line no-console
     onHandoff: (e) => console.log(`[cdc] handoff ${e.type}`, e.offset),
   });
 

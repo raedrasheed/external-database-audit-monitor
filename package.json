@@ -30,7 +30,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

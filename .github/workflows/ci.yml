@@ -87,7 +87,7 @@ jobs:
           node-version-file: .nvmrc
       - run: npm install --no-audit --no-fund
       - name: Build determinism artifact
-        run: npm run determinism:rig > determinism-${{ matrix.os }}.json
+        run: npx tsx conformance/scripts/determinism-rig.ts > determinism-${{ matrix.os }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: determinism-${{ matrix.os }}

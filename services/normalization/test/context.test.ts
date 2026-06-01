@@ -1,6 +1,6 @@
 // Tests for fidelity/completeness attachment (Epic E4 / EDAM-T026).
 import { describe, it, expect } from 'vitest';
-import { assembleTransaction, combineFidelity, UNATTESTED_FIDELITY } from '../src/context.js';
+import { assembleTransaction, combineFidelity } from '../src/context.js';
 import { buildCce, type NormalizedFidelity, type NormalizedCompleteness } from '@edam/cce-model';
 import type { GroupedTransaction } from '../src/accumulator.js';
 

@@ -56,7 +56,6 @@ describe('integrity integration', () => {
 
   it('raises a gap alarm and sets gap_detected when a transaction is skipped', async () => {
     const alarms = new InMemoryAlarmSink();
-    const updates = new InMemoryCompletenessUpdateSink();
     const w = new CompletenessWatcher({ engine: 'mysql', dbId: 'kafel-dev-mysql' });
 
     let t = 1000;
