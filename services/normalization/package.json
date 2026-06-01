@@ -1,0 +1,14 @@
+{
+  "name": "@edam/normalization",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Normalization Service: maps CDC CAPTURED records into Canonical Change Events via the CCE builder; routes malformed events to the DLQ (Epic E4).",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@edam/canonical": "*",
+    "@edam/contracts": "*",
+    "@edam/cce-model": "*",
+    "@edam/dlq": "*"
+  }
+}

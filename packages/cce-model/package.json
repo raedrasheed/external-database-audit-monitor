@@ -1,0 +1,20 @@
+{
+  "name": "@edam/cce-model",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical Change Event builder: diff, masking, transaction assembly, deterministic ids/hashes (Epic E4). Pure; no I/O.",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*",
+    "@edam/contracts": "*"
+  }
+}
