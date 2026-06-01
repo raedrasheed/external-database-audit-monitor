@@ -153,6 +153,23 @@ jobs:
           name: secret-hygiene-proof
           path: secret-hygiene-proof.json
 
+  # Honesty invariant suite (Epic E8 / EDAM-T054, INV-2).
+  invariants:
+    name: honesty-invariants (INV-2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
+      - name: Verify honesty invariants (+ emit report)
+        run: npm run invariants -- --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: invariant-report
+          path: invariant-report.json
+
   # Validate the dev Compose stack configuration (no full bring-up).
   compose-validate:
     name: compose-validate
