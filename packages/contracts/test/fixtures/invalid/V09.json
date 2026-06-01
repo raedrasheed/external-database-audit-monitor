@@ -1,0 +1,92 @@
+{
+  "schema_version": "cce-1.0",
+  "envelope_id": "65ab4cac-332a-50ac-a258-81a1d6696674",
+  "kind": "transaction",
+  "source": {
+    "db_id": "kafel-prod-mysql",
+    "engine": "mysql",
+    "engine_version": "8.0.36",
+    "server_uuid": "3E11FA47-71CA-11E1-9E33-C80AA9429562",
+    "schema": "kafel"
+  },
+  "transaction": {
+    "tx_id": "3E11FA47-71CA-11E1-9E33-C80AA9429562:152",
+    "commit_ts": "2026-06-01T10:22:31.114Z",
+    "ingest_ts": "2026-06-01T10:22:31.480Z",
+    "statement_count": 1
+  },
+  "offset": {
+    "gtid": "3E11FA47-71CA-11E1-9E33-C80AA9429562:152",
+    "binlog_file": "mysql-bin.000042",
+    "binlog_pos": 99812,
+    "lsn": null,
+    "scn": null,
+    "resume_token": null
+  },
+  "fidelity": {
+    "state": "HEALTHY",
+    "source_config": {
+      "binlog_format": "ROW",
+      "binlog_row_image": "FULL",
+      "gtid_mode": "ON",
+      "log_bin": "ON",
+      "config_snapshot_id": "cfg-2026-06-01T10:00Z"
+    }
+  },
+  "completeness": {
+    "consumed_offset_key": "3E11FA47-71CA-11E1-9E33-C80AA9429562:152",
+    "consumed_gtid_set": "3E11FA47-71CA-11E1-9E33-C80AA9429562:1-152",
+    "heartbeat_ts": "2026-06-01T10:22:30.900Z",
+    "snapshot_phase": "streaming"
+  },
+  "actor": {
+    "db_user": "ops_admin",
+    "client_host": "10.0.7.21",
+    "connection_id": "338217",
+    "application_name": null,
+    "attribution_confidence": "exact",
+    "audit_event_ref": "dbaudit:2026-06-01/10/#44711",
+    "correlation_basis": [
+      "connection_id",
+      "gtid",
+      "time_window"
+    ]
+  },
+  "changes": [
+    {
+      "seq": 0,
+      "operation": "UPDATE",
+      "object": {
+        "schema": "kafel",
+        "name": "donations",
+        "primary_key": {
+          "id": 90211
+        }
+      },
+      "before": {
+        "id": 90211,
+        "amount": "100.00",
+        "status": "approved",
+        "approved_at": "2026-05-30T09:00:00.000Z"
+      },
+      "after": {
+        "id": 90211,
+        "amount": "100000.00",
+        "status": "approved",
+        "approved_at": "2026-05-30T09:00:00.000Z"
+      },
+      "field_changes": [
+        {
+          "path": [
+            "amount"
+          ],
+          "old": "100.00",
+          "new": "100000.00",
+          "data_type": "decimal",
+          "changed": true,
+          "sensitive": false
+        }
+      ]
+    }
+  ]
+}
