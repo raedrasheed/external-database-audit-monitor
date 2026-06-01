@@ -1,0 +1,23 @@
+{
+  "name": "@edam/evidence-writer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain-B append-only evidence writer (Sprint-2 / EDAM-T106): validate-before-write, deterministic WORM keys, CCE evidence back-refs, DLQ on failure. Append-only — never mutates WORM.",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*",
+    "@edam/contracts": "*",
+    "@edam/cce-model": "*",
+    "@edam/dlq": "*",
+    "@edam/worm": "*"
+  }
+}
