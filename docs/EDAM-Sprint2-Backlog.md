@@ -706,6 +706,20 @@ Secondary (review M/L items, folded in): **M4** narrow `exists()` to treat only 
 | **H4** `retainUntil` optional → no-lock writes | **R2** | EDAM-T104-H4 | **T164** asserts no unlocked object is producible |
 | **H5** "blocks deletion/shorten" verified via adapter guard, not MinIO | **R3** false confidence (green tests imply MinIO enforcement) | EDAM-T104-H5 | **T162** tamper/deletion drills must exercise **store-level** enforcement |
 
+### 13.2a T106 evidence-writer follow-ups (from the accepted T106 adversarial review)
+
+T106 review verdict: APPROVE WITH CHANGES. The two **High** findings were closed in `fix(edam): close T106 high findings`:
+- **F-H1 (closed):** `EvidenceWriter` now rejects any CCE lacking well-formed, verifying integrity evidence (`evidence.event_hash` + `evidence.row_hash`, validated via `isHashToken` + `verifyCce`) → DLQ `SCHEMA_VALIDATION_FAILURE`, no WORM write.
+- **F-H2 (closed):** validation/`verifyCce`/serialization run in a protected `prepare()` block; any canonical-serialization throw → DLQ `SERIALIZATION_FAILURE`, no WORM write, no uncaught throw from `append` (except DLQ-persistence failure, F-L1).
+
+Still tracked (no fix yet — none is closable without a content-aware WORM read, which would change `WormStore`):
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **EDAM-T106-FM1** | Medium | Benign idempotent replay (same content/key) is DLQ'd as `UNEXPECTED_EXCEPTION` + alarmed. | Needs a content-equality read (no `WormStore` change now). Decide duplicate-vs-conflict semantics in E2B. Blocks: T162 (replay drills). |
+| **EDAM-T106-FM2** | Medium | A genuine same-key/different-content conflict is under-classified as `UNEXPECTED_EXCEPTION` rather than a CRITICAL integrity event. | Same root as FM1; introduce a content-aware `putIfAbsentOrEqual` semantic in a later interface revision (deferred). Blocks: T162, T164. |
+| **EDAM-T106-FL1** | Low | `append` rejects if DLQ persistence itself fails; documented in `writer.ts` (no silent drop — the failure surfaces). | Documentation done; no further action. |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 

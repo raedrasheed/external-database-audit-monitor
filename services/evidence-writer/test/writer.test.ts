@@ -123,4 +123,56 @@ describe('EvidenceWriter.append (T106)', () => {
     const w = store.writer();
     expect(Object.keys(w)).toEqual(['putImmutable']);
   });
+
+  // ---- F-H1: a CCE must carry verifying integrity evidence ----
+
+  it('F-H1: a hash-less CCE (no evidence) is rejected to the DLQ, not written', async () => {
+    const cce = buildCce(streamingTx(6)) as Record<string, any>;
+    delete cce.evidence; // schema-valid (evidence optional), V12 skipped -> would pass validateCceFull
+    const out = await writer.append(cce as never, { segment_id: 'seg-h1a', seq: 0 });
+    expect(out.status).toBe('DLQ');
+    if (out.status !== 'DLQ') return;
+    expect(out.item.failure_category).toBe('SCHEMA_VALIDATION_FAILURE');
+    expect(out.reason).toMatch(/evidence/i);
+    expect(alarms.byKind('DLQ_ENQUEUE').length).toBe(1);
+    expect(await store.reader().list('')).toEqual([]); // nothing reached WORM
+  });
+
+  it('F-H1: a CCE missing evidence.row_hash is rejected (V12 does not check it)', async () => {
+    const cce = buildCce(streamingTx(7)) as Record<string, any>;
+    delete cce.evidence.row_hash; // event_hash kept -> passes validateCceFull/V12
+    const out = await writer.append(cce as never, { segment_id: 'seg-h1b', seq: 0 });
+    expect(out.status).toBe('DLQ');
+    if (out.status !== 'DLQ') return;
+    expect(out.item.failure_category).toBe('SCHEMA_VALIDATION_FAILURE');
+    expect(out.reason).toMatch(/row_hash/i);
+    expect(await store.reader().list('')).toEqual([]);
+  });
+
+  it('F-H1: a CCE missing evidence.event_hash is rejected', async () => {
+    const cce = buildCce(streamingTx(8)) as Record<string, any>;
+    delete cce.evidence.event_hash;
+    const out = await writer.append(cce as never, { segment_id: 'seg-h1c', seq: 0 });
+    expect(out.status).toBe('DLQ');
+    if (out.status !== 'DLQ') return;
+    expect(out.reason).toMatch(/event_hash/i);
+    expect(await store.reader().list('')).toEqual([]);
+  });
+
+  // ---- F-H2: serialization failures are DLQ'd, never thrown ----
+
+  it('F-H2: a canonical-hostile value (float) is DLQ\'d as SERIALIZATION_FAILURE, not thrown', async () => {
+    const cce = buildCce(streamingTx(9)) as Record<string, any>;
+    cce.changes[0].field_changes[0].old = 1.5; // float in the hashed core -> serializeCanonical throws
+    let out: Awaited<ReturnType<typeof writer.append>> | undefined;
+    await expect(
+      (async () => {
+        out = await writer.append(cce as never, { segment_id: 'seg-h2', seq: 0 });
+      })(),
+    ).resolves.toBeUndefined(); // append did NOT throw
+    expect(out?.status).toBe('DLQ');
+    if (out?.status !== 'DLQ') return;
+    expect(out.item.failure_category).toBe('SERIALIZATION_FAILURE');
+    expect(await store.reader().list('')).toEqual([]); // nothing reached WORM
+  });
 });
