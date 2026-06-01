@@ -1,0 +1,14 @@
+{
+  "name": "@edam/traffic-generator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic change-traffic generator for the EDAM dev stack (EDAM-T049)",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0"
+  }
+}
