@@ -81,6 +81,21 @@ export interface BuildOptions {
   sensitiveFields?: string[];
   /** Previous row_hash for the chain link; genesis if omitted. */
   prevRowHash?: string | null;
+  /** Size-split part index (CCE §12.5); omit for a whole-transaction envelope. */
+  part?: number | string;
+}
+
+/** Derive the deterministic envelope_id for a transaction (CCE §3). */
+export function deriveEnvelopeId(
+  input: Pick<NormalizedTransaction, 'source' | 'transaction'>,
+  part?: number | string,
+): string {
+  return envelopeId({
+    db_id: input.source.db_id,
+    tx_id: input.transaction.tx_id,
+    server_uuid: input.source.server_uuid,
+    ...(part !== undefined ? { part } : {}),
+  });
 }
 
 export function buildCce(input: NormalizedTransaction, opts: BuildOptions = {}): Cce {
@@ -102,11 +117,7 @@ export function buildCce(input: NormalizedTransaction, opts: BuildOptions = {}):
     return item;
   });
 
-  const envelope_id = envelopeId({
-    db_id: input.source.db_id,
-    tx_id: input.transaction.tx_id,
-    server_uuid: input.source.server_uuid,
-  });
+  const envelope_id = deriveEnvelopeId(input, opts.part);
 
   // The CCE core = envelope minus `evidence` (CCE §8). event_hash is over its
   // canonical serialization.
