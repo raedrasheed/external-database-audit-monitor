@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/reversal-directive-1.0.schema.json",
+  "title": "ReversalDirective v1",
+  "type": "object",
+  "required": ["schema_version","directive_id","related_cce_envelope_id","state","target",
+               "reversal_operation","captured_before_image","captured_after_image",
+               "proposed_restored_image","requested_by","requires_four_eyes","approvals",
+               "nonce","expires_at","created_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "reversal-directive-1.0" },
+    "directive_id": { "type": "string", "format": "uuid" },
+    "edam_instance_id": { "type": "string", "minLength": 1 },
+    "related_cce_envelope_id": { "type": "string", "format": "uuid" },
+    "related_alert_id": { "type": ["string","null"] },
+    "state": { "type": "string", "enum": ["DRAFT","PENDING_APPROVAL","APPROVED","SIGNED","DISPATCHED","CONSUMED","REJECTED","EXPIRED"] },
+    "target": {
+      "type": "object",
+      "required": ["db_id","engine","schema","table","primary_key"],
+      "additionalProperties": false,
+      "properties": {
+        "db_id": { "type": "string", "minLength": 1 },
+        "engine": { "type": "string", "enum": ["mysql","mariadb","postgres","sqlserver","oracle","mongodb"] },
+        "schema": { "type": "string", "minLength": 1 },
+        "table": { "type": "string", "minLength": 1 },
+        "primary_key": { "type": "object", "minProperties": 1 }
+      }
+    },
+    "reversal_operation": { "type": "string", "enum": ["RESTORE_UPDATE","REINSERT_DELETED","DELETE_INSERTED"] },
+    "captured_before_image": { "type": ["object","null"] },
+    "captured_after_image": { "type": ["object","null"] },
+    "proposed_restored_image": { "type": ["object","null"] },
+    "risk_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "risk_score": { "type": "integer" },
+        "triggered_rules": { "type": "array", "items": { "type": "string" } },
+        "reason_text": { "type": "string" }
+      }
+    },
+    "requested_by": { "type": "string", "minLength": 1 },
+    "requires_four_eyes": { "type": "boolean" },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["approver_id","decision","decided_at"],
+        "additionalProperties": false,
+        "properties": {
+          "approver_id": { "type": "string", "minLength": 1 },
+          "decision": { "type": "string", "enum": ["approve","reject"] },
+          "webauthn_assertion_ref": { "type": "string" },
+          "decided_at": { "type": "string", "format": "date-time" },
+          "comment": { "type": "string" }
+        }
+      }
+    },
+    "rejection_reason": { "type": ["string","null"],
+      "enum": ["REJECTED_BY_APPROVER","INSUFFICIENT_QUORUM","REQUESTER_CANNOT_APPROVE","POLICY_VIOLATION","TARGET_NOT_WHITELISTED","UNSUPPORTED_OPERATION","STALE_CCE_REFERENCE","IMAGE_INCONSISTENT",null] },
+    "nonce": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "signature": {
+      "type": ["object","null"],
+      "additionalProperties": false,
+      "properties": {
+        "hsm_signature": { "type": "string" },
+        "signing_key_id": { "type": "string" },
+        "signed_at": { "type": "string", "format": "date-time" },
+        "canonical_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "reversal_operation": { "const": "REINSERT_DELETED" } } },
+      "then": { "properties": { "captured_after_image": { "const": null },
+                                "captured_before_image": { "type": "object" } } } },
+    { "if": { "properties": { "reversal_operation": { "const": "DELETE_INSERTED" } } },
+      "then": { "properties": { "captured_after_image": { "type": "object" } } } },
+    { "if": { "properties": { "requires_four_eyes": { "const": true } } },
+      "then": { "properties": { "approvals": { "minItems": 2 } } } },
+    { "if": { "properties": { "state": { "enum": ["SIGNED","DISPATCHED","CONSUMED"] } } },
+      "then": { "required": ["signature"], "properties": { "signature": { "type": "object", "required": ["hsm_signature","signing_key_id","canonical_hash"] } } } }
+  ]
+}

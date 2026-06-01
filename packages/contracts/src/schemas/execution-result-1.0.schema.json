@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/execution-result-1.0.schema.json",
+  "title": "ExecutionResult v1",
+  "type": "object",
+  "required": ["schema_version","result_id","directive_id","result_status","executor",
+               "credential","executed_at","affected_rows","receipt"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "execution-result-1.0" },
+    "result_id": { "type": "string", "format": "uuid" },
+    "directive_id": { "type": "string", "format": "uuid" },
+    "reversal_cce_envelope_id": { "type": ["string","null"], "format": "uuid" },
+    "result_status": { "type": "string", "enum": ["SUCCESS","DRIFT_CONFLICT","VALIDATION_FAILED","EXECUTION_FAILED","VERIFICATION_FAILED"] },
+    "executor": {
+      "type": "object",
+      "required": ["ces_instance_id","service_identity"],
+      "additionalProperties": false,
+      "properties": {
+        "ces_instance_id": { "type": "string", "minLength": 1 },
+        "service_identity": { "type": "string", "minLength": 1 }
+      }
+    },
+    "credential": {
+      "type": "object",
+      "required": ["issued_at","ttl_seconds","scope"],
+      "additionalProperties": false,
+      "properties": {
+        "issued_at": { "type": "string", "format": "date-time" },
+        "ttl_seconds": { "type": "integer", "minimum": 1 },
+        "vault_lease_id": { "type": "string" },
+        "scope": { "type": "string", "minLength": 1 }
+      }
+    },
+    "execution_started_at": { "type": "string", "format": "date-time" },
+    "execution_finished_at": { "type": "string", "format": "date-time" },
+    "executed_at": { "type": "string", "format": "date-time" },
+    "affected_rows": { "type": "integer", "minimum": 0 },
+    "post_state": { "type": ["object","null"] },
+    "post_state_matches": { "type": ["boolean","null"] },
+    "drift": {
+      "type": ["object","null"],
+      "additionalProperties": false,
+      "properties": {
+        "expected_after_image": { "type": ["object","null"] },
+        "observed_current_image": { "type": ["object","null"] },
+        "differing_paths": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } }
+      }
+    },
+    "failure": {
+      "type": ["object","null"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "enum": ["BAD_SIGNATURE","DIRECTIVE_EXPIRED","REPLAY_DETECTED","QUORUM_INVALID","TARGET_NOT_WHITELISTED","DB_ERROR","TIMEOUT","POSTSTATE_MISMATCH"] },
+        "message": { "type": "string" }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["event_hash","ces_signature","ces_signing_key_id"],
+      "additionalProperties": false,
+      "properties": {
+        "event_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "prev_row_hash": { "type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+        "row_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "ces_signature": { "type": "string" },
+        "ces_signing_key_id": { "type": "string" },
+        "worm_object_key": { "type": "string" },
+        "anchor_ref": { "type": ["object","null"] }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "result_status": { "const": "SUCCESS" } } },
+      "then": { "properties": { "affected_rows": { "const": 1 }, "post_state_matches": { "const": true } },
+                "required": ["post_state"] } },
+    { "if": { "properties": { "result_status": { "const": "DRIFT_CONFLICT" } } },
+      "then": { "properties": { "affected_rows": { "const": 0 } }, "required": ["drift"] } },
+    { "if": { "properties": { "result_status": { "enum": ["VALIDATION_FAILED","EXECUTION_FAILED","VERIFICATION_FAILED"] } } },
+      "then": { "required": ["failure"], "properties": { "affected_rows": { "const": 0 } } } },
+    { "if": { "properties": { "result_status": { "const": "VERIFICATION_FAILED" } } },
+      "then": { "properties": { "post_state_matches": { "const": false } } } }
+  ]
+}

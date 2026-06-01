@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edam.spec/db-audit-event-1.0.schema.json",
+  "title": "DB-Audit Event v1",
+  "type": "object",
+  "required": ["schema_version","audit_event_id","audit_source","statement_class","event_ts","ingest_ts","attribution_confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "db-audit-event-1.0" },
+    "audit_event_id": { "type": "string", "format": "uuid" },
+    "audit_source": {
+      "type": "object",
+      "required": ["id","type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["mysql_enterprise_audit","mariadb_audit_plugin","percona_audit_plugin","cloud_audit"] },
+        "provider": { "type": "string", "enum": ["aws_rds","aurora","gcp_cloudsql","azure_sql"] },
+        "host": { "type": "string" }
+      }
+    },
+    "db_user": { "type": ["string","null"] },
+    "client_host": { "type": ["string","null"] },
+    "proxy_host": { "type": ["string","null"] },
+    "connection_id": { "type": ["string","null"] },
+    "thread_id": { "type": ["string","null"] },
+    "statement_class": { "type": "string", "enum": ["CONNECT","QUERY","DML","DDL","ADMIN","DISCONNECT"] },
+    "statement_digest": { "type": ["string","null"] },
+    "objects": {
+      "type": "array",
+      "items": { "type": "object", "required": ["schema","name"],
+                 "properties": { "schema": { "type": "string" }, "name": { "type": "string" } } }
+    },
+    "contains_sensitive": { "type": "boolean" },
+    "raw_statement_ref": { "type": ["string","null"] },
+    "event_ts": { "type": "string", "format": "date-time" },
+    "ingest_ts": { "type": "string", "format": "date-time" },
+    "plugin_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "loaded": { "type": "boolean" },
+        "logging_active": { "type": "boolean" },
+        "last_heartbeat_ts": { "type": "string", "format": "date-time" },
+        "policy_hash": { "type": "string" }
+      }
+    },
+    "tamper_indicators": { "type": "array", "items": { "type": "string",
+       "enum": ["AUDIT_PLUGIN_DISABLED","AUDIT_LOG_GAP","AUDIT_POLICY_CHANGED","CLOCK_SKEW"] } },
+    "attribution_confidence": { "type": "string", "enum": ["exact","probable","unattributed"] },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "prev_row_hash": { "type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+        "row_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "worm_object_key": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "attribution_confidence": { "not": { "const": "unattributed" } } } },
+      "then": { "required": ["connection_id"] } },
+    { "if": { "properties": { "audit_source": { "properties": { "type": { "const": "cloud_audit" } } } } },
+      "then": { "properties": { "audit_source": { "required": ["provider"] } } } }
+  ]
+}
