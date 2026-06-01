@@ -27,6 +27,7 @@
     "determinism:compare": "tsx conformance/scripts/determinism-compare.ts",
     "conformance": "tsx conformance/scripts/conformance-report.ts",
     "no-write-proof": "tsx conformance/scripts/no-write-proof.ts",
+    "secret-hygiene": "tsx conformance/scripts/secret-hygiene.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

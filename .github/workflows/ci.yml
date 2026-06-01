@@ -136,6 +136,23 @@ jobs:
           name: no-write-path-proof
           path: no-write-path-proof.json
 
+  # Masking & secret-hygiene proof (Epic E8 / EDAM-T053).
+  secret-hygiene:
+    name: secret-hygiene (INV-2/PII)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
+      - name: Assert no secret/PII leakage (+ emit proof)
+        run: npm run secret-hygiene -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: secret-hygiene-proof
+          path: secret-hygiene-proof.json
+
   # Validate the dev Compose stack configuration (no full bring-up).
   compose-validate:
     name: compose-validate
