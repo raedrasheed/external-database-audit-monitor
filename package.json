@@ -12,6 +12,7 @@
     "services/*",
     "apps/*",
     "tools/*",
+    "infra/*",
     "conformance"
   ],
   "scripts": {

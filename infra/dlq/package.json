@@ -1,0 +1,19 @@
+{
+  "name": "@edam/dlq",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dead Letter Queue & failure isolation for pre-CCE processing (Epic E5). No event ever disappears silently.",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*"
+  }
+}

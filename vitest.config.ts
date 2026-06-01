@@ -7,6 +7,7 @@ export default defineConfig({
       'conformance/**/*.test.ts',
       'packages/**/*.test.ts',
       'services/**/*.test.ts',
+      'infra/**/*.test.ts',
     ],
     environment: 'node',
     reporters: 'default',
