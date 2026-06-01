@@ -2,7 +2,8 @@
 // Each case exercises the REAL frozen implementations.
 
 import { buildCce, compareCce, type NormalizedChange, type NormalizedTransaction } from '@edam/cce-model';
-import { CceStreamGuard } from '@edam/normalization';
+import { serializeCanonical } from '@edam/canonical';
+import { CceStreamGuard, correlateActor } from '@edam/normalization';
 import { assessFidelity } from '@edam/cdc-collector/attestation';
 import { CompletenessWatcher } from '@edam/cdc-collector/completeness';
 import type { ConformanceCase, ConformanceOutcome } from './types.js';
@@ -177,4 +178,48 @@ export const C8: ConformanceCase = {
   },
 };
 
-export const CASES: ConformanceCase[] = [C3, C4, C5, C6, C7, C8];
+// ---------------------------------------------------------------------------
+// C-1: deterministic canonical serialization + hashing (byte-stable).
+// ---------------------------------------------------------------------------
+export const C1: ConformanceCase = {
+  id: 'C-1',
+  title: 'Deterministic serialization + hashing (byte-stable)',
+  spec_ref: 'CCE-v1-Specification.md §12.7, §8',
+  run(): ConformanceOutcome {
+    const input = txWith(30, [{ operation: 'UPDATE', object: don(1), before: { id: 1, amount: '1.00', status: 'approved' }, after: { id: 1, amount: '2.00', status: 'approved' } }]);
+    const a = buildCce(input);
+    const b = buildCce(input);
+    if (a.envelope_id !== b.envelope_id || a.evidence.event_hash !== b.evidence.event_hash) {
+      return fail('repeated build produced different ids/hashes');
+    }
+    if (JSON.stringify(a) !== JSON.stringify(b)) return fail('repeated build produced different CCEs');
+    // Canonical serialization is order-independent and stable.
+    if (serializeCanonical({ a: 1, b: 2 }) !== serializeCanonical({ b: 2, a: 1 })) {
+      return fail('canonical serialization is not order-independent');
+    }
+    return ok('Repeated builds byte-identical; canonical serialization order-independent (cross-target proof in the determinism rig).');
+  },
+};
+
+// ---------------------------------------------------------------------------
+// C-10: attribution exact / probable / unattributed.
+// ---------------------------------------------------------------------------
+export const C10: ConformanceCase = {
+  id: 'C-10',
+  title: 'Attribution confidence: exact / probable / unattributed',
+  spec_ref: 'CCE-v1-Specification.md §7; companion DB-Audit Event §C',
+  run(): ConformanceOutcome {
+    const query = { dbId: 'kafel-dev-mysql', commitTs: '2026-06-01T10:00:00.000Z', tables: ['donations'], windowMs: 5000 };
+    const cand = { audit_event_id: 'dbaudit:1', db_user: 'ops_admin', connection_id: '338217', event_ts: '2026-06-01T10:00:01.000Z', objects: [{ schema: 'kafel', name: 'donations' }] };
+
+    if (correlateActor(query, []).attribution_confidence !== 'unattributed') return fail('no candidates must be unattributed');
+    if (correlateActor(query, [cand]).attribution_confidence !== 'probable') return fail('single window+table candidate must be probable');
+    if (correlateActor({ ...query, connectionId: '338217' }, [cand]).attribution_confidence !== 'exact') return fail('hard connection_id match must be exact');
+    if (correlateActor(query, [cand, { ...cand, audit_event_id: 'b', connection_id: '999' }]).attribution_confidence !== 'unattributed') {
+      return fail('ambiguous candidates must be unattributed');
+    }
+    return ok('exact (key match) / probable (window+table) / unattributed (none or ambiguous).');
+  },
+};
+
+export const CASES: ConformanceCase[] = [C1, C3, C4, C5, C6, C7, C8, C10];
