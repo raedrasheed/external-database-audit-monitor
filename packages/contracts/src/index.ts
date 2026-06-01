@@ -8,3 +8,5 @@ export {
   type ValidationResult,
 } from './validator.js';
 export { type RuleId } from './rules.js';
+export { validateCceFull, checkVersionGate } from './full.js';
+export { validateCceStateful, computeEventHash, CceStreamValidator } from './stateful.js';
