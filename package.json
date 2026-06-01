@@ -22,14 +22,25 @@
     "compose:logs": "docker compose -f deploy/compose/docker-compose.yml logs -f",
     "traffic": "tsx tools/traffic-generator/src/index.ts",
     "fixtures:pin": "tsx conformance/scripts/pin-golden-values.ts",
+    "fixtures:build": "tsx conformance/scripts/build-fixtures.ts",
+    "determinism:rig": "tsx conformance/scripts/determinism-rig.ts",
+    "determinism:compare": "tsx conformance/scripts/determinism-compare.ts",
+    "conformance": "tsx conformance/scripts/conformance-report.ts",
+    "no-write-proof": "tsx conformance/scripts/no-write-proof.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "lint": "echo \"(eslint configured in a later enablement task)\""
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^9.11.0",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
+    "typescript-eslint": "^8.8.0",
     "vitest": "^2.0.5"
   }
 }
