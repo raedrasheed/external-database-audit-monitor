@@ -45,6 +45,29 @@ describe('validateCceFull', () => {
     expect(validateCceStateful(bad).some((e) => e.rule === 'V4')).toBe(true);
   });
 
+  it('V11: rejects an empty real offset key (HIGH-1, no V16 bypass)', () => {
+    const bad = withDerivedId(base);
+    bad.offset.gtid = '';
+    const rules = validateCceStateful(bad).map((e) => e.rule);
+    expect(rules).toContain('V11'); // empty gtid flagged
+    expect(rules).toContain('V16'); // and treated as binlog-only -> guard fires (streaming phase)
+  });
+
+  it('V16: binlog-only offset on a cce-1.0 streaming event is rejected', () => {
+    const bad = withDerivedId(base);
+    bad.offset = { gtid: null, binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    expect(validateCceStateful(bad).some((e) => e.rule === 'V16')).toBe(true);
+  });
+
+  it('V16: accepts a well-formed cce-1.1 snapshot binlog-only offset', () => {
+    const ok = withDerivedId(base);
+    ok.schema_version = 'cce-1.1';
+    ok.offset = { gtid: null, binlog_file: 'mysql-bin.000003', binlog_pos: 4096, lsn: null, scn: null, resume_token: null };
+    ok.completeness.snapshot_phase = 'snapshot';
+    ok.completeness.snapshot_epoch_id = 'snap-0123456789abcdef';
+    expect(validateCceStateful(ok).some((e) => e.rule === 'V16')).toBe(false);
+  });
+
   it('V4: rejects statement_count != changes.length', () => {
     const bad = withDerivedId(base);
     bad.transaction.statement_count = 2;
