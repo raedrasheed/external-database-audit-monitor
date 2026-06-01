@@ -131,9 +131,34 @@ services:
       timeout: 5s
       retries: 10
 
+  # -------------------------------------------------------------------------
+  # WORM evidence store (Sprint-2 / EDAM-T104) - MinIO with S3 Object Lock.
+  # The bucket is created with Object Lock + versioning by the evidence writer
+  # (compliance-mode retention, W-1/W-2/W-4). DEV throwaway credentials only;
+  # production uses a real Object-Lock-capable store with dual-control identities.
+  # -------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: edam-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
 volumes:
   mysql-data:
   mariadb-data:
   redis-data:
   debezium-data:
   postgres-data:
+  minio-data:
