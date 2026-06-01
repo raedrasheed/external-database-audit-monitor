@@ -68,6 +68,18 @@ describe('validateCceFull', () => {
     expect(validateCceStateful(ok).some((e) => e.rule === 'V16')).toBe(false);
   });
 
+  it('V17: rejects a snapshot event whose snapshot_epoch_id does not derive', () => {
+    const bad = withDerivedId(base);
+    bad.completeness.snapshot_phase = 'snapshot';
+    bad.completeness.snapshot_epoch_id = 'snap-deadbeefdeadbeef'; // not derived from the watermark
+    expect(validateCceStateful(bad).some((e) => e.rule === 'V17')).toBe(true);
+  });
+
+  it('V17: streaming events are not subject to the snapshot identity rule', () => {
+    const ok = withDerivedId(base); // snapshot_phase: 'streaming'
+    expect(validateCceStateful(ok).some((e) => e.rule === 'V17')).toBe(false);
+  });
+
   it('V4: rejects statement_count != changes.length', () => {
     const bad = withDerivedId(base);
     bad.transaction.statement_count = 2;

@@ -12,7 +12,15 @@
 //   V14 ingest_ts monotonic per stream   (stream — see CceStreamValidator)
 //   V15 duplicate envelope_id w/ differing event_hash (stream)
 
-import { envelopeId, serializeCanonical, eventHash, rowHash } from '@edam/canonical';
+import {
+  envelopeId,
+  serializeCanonical,
+  eventHash,
+  rowHash,
+  snapshotEpochId,
+  snapshotTxId,
+  snapshotConsumedOffsetKey,
+} from '@edam/canonical';
 import type { RuleId } from './rules.js';
 import type { ValidationError } from './validator.js';
 
@@ -103,6 +111,43 @@ export function validateCceStateful(cce: Cce): ValidationError[] {
     }
     if (reasons.length > 0) {
       errors.push(err('V16', '/offset', `binlog-only offset not permitted: ${reasons.join('; ')}`));
+    }
+  }
+
+  // V17 — snapshot identity (CCE-AMD-001 Rev 4 §1/§3/§4/§11). For snapshot-phase
+  // events, snapshot_epoch_id must re-derive from the captured watermark + the
+  // capture-sourced snapshot-start timestamp (commit_ts), and tx_id /
+  // consumed_offset_key must be the canonical snapshot forms.
+  const snapPhase = cce.completeness?.snapshot_phase;
+  if (snapPhase === 'snapshot' || snapPhase === 'handoff') {
+    const epochId = cce.completeness?.snapshot_epoch_id;
+    if (typeof epochId !== 'string' || epochId.length === 0) {
+      errors.push(err('V17', '/completeness/snapshot_epoch_id',
+        'snapshot-phase event must carry a non-empty snapshot_epoch_id'));
+    } else {
+      const expectedEpoch = snapshotEpochId({
+        db_id: String(cce.source?.db_id ?? ''),
+        server_uuid: String(cce.source?.server_uuid ?? ''),
+        snapshot_start_binlog_file: String(cce.offset?.binlog_file ?? ''),
+        snapshot_start_binlog_pos: Number(cce.offset?.binlog_pos ?? 0),
+        snapshot_start_ts: String(cce.transaction?.commit_ts ?? ''),
+      });
+      if (expectedEpoch !== epochId) {
+        errors.push(err('V17', '/completeness/snapshot_epoch_id',
+          `snapshot_epoch_id does not derive from the watermark + snapshot-start ts; expected ${expectedEpoch}`));
+      }
+      const obj = Array.isArray(cce.changes) ? cce.changes[0]?.object : undefined;
+      if (obj && typeof obj.schema === 'string' && typeof obj.name === 'string') {
+        const expectedTx = snapshotTxId(epochId, { schema: obj.schema, name: obj.name, primary_key: obj.primary_key });
+        if (cce.transaction?.tx_id !== expectedTx) {
+          errors.push(err('V17', '/transaction/tx_id', `snapshot tx_id must be ${expectedTx}`));
+        }
+      }
+      const expectedKey = snapshotConsumedOffsetKey(epochId);
+      if (cce.completeness?.consumed_offset_key !== expectedKey) {
+        errors.push(err('V17', '/completeness/consumed_offset_key',
+          `snapshot consumed_offset_key must be ${expectedKey}`));
+      }
     }
   }
 
