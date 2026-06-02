@@ -1,0 +1,20 @@
+{
+  "name": "@edam/anchoring",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "External anchoring (Sprint-2 / EDAM-T130): AnchorProvider abstraction over the frozen {rfc3161, transparency_log, dual_custodian} enum. The provider receives only the hash of the signed anchor payload (no plaintext); ANCHORED only after a verified external token; no fabrication on failure. Interface + dev fake only this task — no real TSA, no state machine, no WORM.",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*",
+    "@edam/signing": "*"
+  }
+}
