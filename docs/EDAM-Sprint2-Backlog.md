@@ -844,6 +844,20 @@ T131 review verdict: APPROVE WITH CHANGES — cryptographically sound dev TSA: r
 | **E2D-ANCHOR-L11** | Low | No **T2E-style test** where the certificate is obtained from a **separately published source**, not `provider.getCertificate()`. | Add the published-cert verification test. |
 | **E2D-ANCHOR-L12** | Low | **Provider outage / timeout pass-through** is not covered on the real/dev RFC-3161 path. | Cover via the real/dev RFC-3161 provider path or service-level tests (with E2D-ANCHOR-L6). |
 
+### 13.2k E2D-ANCHOR — transparency-log provider findings (from the accepted T132 adversarial review)
+
+T132 review verdict: APPROVE WITH CHANGES — RFC 6962 Merkle construction + verification correct (proper 0x00/0x01 prefixes; hand- and round-trip-verified); both ACs met with real crypto; proof shape matches `anchor-record-1.0`; clean isolation; every tamper/forgery/replay variant fails closed. **CT1 does not block T133; T133 may proceed.** **CT1 must be addressed during T2E / production-grade transparency-log validation.** **M1 remains only PARTIALLY closed** — full closure requires (1) a **trusted published log/TSA certificate source**, (2) **independent verification** (T2E) against that source (not the provider object), and (3) for `transparency_log`, a **consistency / anti-equivocation strategy**.
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2D-ANCHOR-CT1** | Medium | **Transparency-log equivocation / split-view.** Inclusion-to-a-signed-STH proves "the log signed an STH whose tree includes P," **not** that P is in a single canonical append-only log. A compromised/malicious log can sign **divergent STHs** (different roots) to different parties; inclusion proofs alone do **not** detect this. | **Does NOT block T133.** **Address during T2E / production-grade transparency-log validation:** STH **consistency proofs + gossip**, and/or **multiple providers** / `dual_custodian` for high-value. Weakens the trust-minimized guarantee for `transparency_log` until then. |
+| **E2D-ANCHOR-CT2** | Low | No trusted cert registry to resolve **`log_id` → log public cert** (transparency-log analog of E2D-ANCHOR-L9). | Fold into the **anchor-authority cert-registry** work (T2E); generalize L9 to "anchor authority cert". |
+| **E2D-ANCHOR-CT3** | Low | Log cert has **no validity window / revocation** (analog of L7/L8 for the log cert). | Track with cert-registry / verifier work (enforce `sth_time ∈ validity`; honor revocation). |
+| **E2D-ANCHOR-CT4** | Low | No explicit **proof-length bound** in `rootFromInclusion` (cryptographically safe via root comparison; defense-in-depth only). | Add an audit-path length check for the `(leaf_index, tree_size)` as hardening. |
+| **E2D-ANCHOR-CT5** | Low | `merkleTreeHash` recomputes the whole tree per append (O(n²)) and `#leaves` grows unbounded in memory — **dev-only perf/memory**, not correctness. | Use an incremental Merkle tree + persistence for a production CT log. |
+| **E2D-ANCHOR-CT6** | Low | The internal `TransparencyLogProof` type is **not exported** (ergonomics; structurally compatible with the exported proof shape). | Export the proof type (or reuse the `AnchorProviderProof` transparency_log variant) for T2E reuse. |
+| **E2D-ANCHOR-CT7** | Low | **Outage / timeout pass-through** not tested on the transparency-log provider path (analog of E2D-ANCHOR-L12). | Add the pass-through coverage on the CT path. |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
