@@ -37,3 +37,16 @@ export {
   type ChainFailureRule,
   type ObjectChainCheck,
 } from './chain.js';
+// Segment hash + genesis + cross-segment linkage (Sprint-2 / EDAM-T113).
+// Pure, fail-closed; no manifest/seal/WORM/lifecycle/signing/anchoring.
+export {
+  GENESIS_PREVIOUS_SEGMENT_HASH,
+  computeSegmentHash,
+  segmentHashOf,
+  deriveSegmentHead,
+  verifyCrossSegment,
+  type SegmentHead,
+  type CrossSegmentVerification,
+  type CrossSegmentFailure,
+  type CrossSegmentFailureRule,
+} from './cross-segment.js';
