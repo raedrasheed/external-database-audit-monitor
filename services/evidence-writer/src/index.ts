@@ -19,3 +19,12 @@ export {
   type SegmentObjectHash,
   type AddResult,
 } from './accumulator.js';
+// Evidence segment manifest builder (Sprint-2 / EDAM-T111). Builds the §6
+// manifest core + manifest_hash + validation; no segment_hash / linkage / seal.
+export {
+  buildSegmentManifest,
+  SegmentManifestError,
+  type SegmentManifest,
+  type PreviousSegmentRef,
+  type BuildSegmentManifestOptions,
+} from './manifest.js';
