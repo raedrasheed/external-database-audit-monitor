@@ -8,15 +8,17 @@ export default defineConfig({
       'packages/**/*.test.ts',
       'services/**/*.test.ts',
       'infra/**/*.test.ts',
+      'apps/**/*.test.ts',
     ],
     environment: 'node',
     reporters: 'default',
     coverage: {
       provider: 'v8',
-      include: ['packages/*/src/**/*.ts', 'services/*/src/**/*.ts', 'infra/*/src/**/*.ts'],
+      include: ['packages/*/src/**/*.ts', 'services/*/src/**/*.ts', 'infra/*/src/**/*.ts', 'apps/*/src/**/*.ts'],
       exclude: [
         '**/index.ts', // barrels / service entrypoints (run main(); not unit-tested)
         '**/types.ts',
+        'apps/verifier-cli/src/main.ts', // bin entrypoint (process.exit / fs); orchestration unit-tested
         // Live-IO adapters exercised only against the compose stack:
         'services/cdc-collector/src/bus.ts',
         'services/cdc-collector/src/source-stream.ts',

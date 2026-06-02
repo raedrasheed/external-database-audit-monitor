@@ -70,4 +70,11 @@ export {
 
 export { recomputeProjectionConsistency, type ProjectionSnapshot } from './verify-projection.js';
 
+export {
+  verifyExportSignature,
+  recomputeExportPackageHash,
+  exportSigningMessage,
+  EXPORT_SIGNATURE_DOMAIN,
+} from './verify-export.js';
+
 export { verify, verifySegments, type VerifyOptions, type VerifySegmentsArgs } from './verify.js';
