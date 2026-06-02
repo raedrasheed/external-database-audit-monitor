@@ -51,12 +51,15 @@ export interface AnchorPayload {
 }
 
 /**
- * Signs hash structures (anchor payloads), never CCE/plaintext. A concrete signer
- * holds its key privately; this interface yields only signatures + public keys.
+ * Signs anchor payloads (hash structures), never CCE/plaintext. `sign` takes a
+ * typed AnchorPayload (NOT arbitrary bytes) — the signer canonicalizes + domain-
+ * separates internally, so it cannot be used as a generic signing oracle
+ * (E2C-SIGN-H1/M1). A concrete signer holds its key privately; this interface
+ * yields only signatures + public keys.
  */
 export interface Signer {
-  /** Sign the canonical anchor-payload bytes. Returns the signature + algorithm + key id. */
-  sign(payload: Uint8Array): Promise<SignatureResult>;
+  /** Sign an anchor payload. The signer canonicalizes + domain-separates internally. */
+  sign(payload: AnchorPayload): Promise<SignatureResult>;
   /** Return the PUBLIC key for a signing_key_id (no private material), or undefined if unknown. */
   getPublicKey(signingKeyId: string): PublicKey | undefined;
 }

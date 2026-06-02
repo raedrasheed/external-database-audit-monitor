@@ -6,6 +6,7 @@ import {
   serializeAnchorPayload,
   anchorPayloadBytes,
   anchorPayloadHash,
+  type AnchorPayload,
   type ChainHead,
   type Signer,
   type SignatureResult,
@@ -79,8 +80,8 @@ describe('Signer interface contract (T120)', () => {
   // A minimal in-test stub: proves the interface is implementable and exposes
   // NO private material (sign yields a signature; getPublicKey yields only public).
   class StubSigner implements Signer {
-    async sign(payload: Uint8Array): Promise<SignatureResult> {
-      return { algorithm: 'ed25519', signing_key_id: 'k1', signature: Buffer.from(payload).toString('base64').slice(0, 16) };
+    async sign(payload: AnchorPayload): Promise<SignatureResult> {
+      return { algorithm: 'ed25519', signing_key_id: 'k1', signature: Buffer.from(anchorPayloadBytes(payload)).toString('base64').slice(0, 16) };
     }
     getPublicKey(signingKeyId: string): PublicKey | undefined {
       return signingKeyId === 'k1' ? { algorithm: 'ed25519', signing_key_id: 'k1', public_key: 'PUB', revoked_at: null } : undefined;
@@ -89,7 +90,7 @@ describe('Signer interface contract (T120)', () => {
 
   it('sign returns {algorithm, signing_key_id, signature} and nothing private', async () => {
     const s = new StubSigner();
-    const res = await s.sign(anchorPayloadBytes(buildAnchorPayload(head, OPTS)));
+    const res = await s.sign(buildAnchorPayload(head, OPTS));
     expect(Object.keys(res).sort()).toEqual(['algorithm', 'signature', 'signing_key_id']);
     for (const forbidden of ['private_key', 'privateKey', 'secret', 'key', 'pem']) {
       expect(forbidden in (res as unknown as Record<string, unknown>)).toBe(false);
