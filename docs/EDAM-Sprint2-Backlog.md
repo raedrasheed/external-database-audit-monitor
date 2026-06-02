@@ -816,6 +816,20 @@ T124 review verdict: APPROVE WITH CHANGES — runtime custody proof thorough and
 | **E2C-SIGN-L23** | Low | CLI `void main()` has no `.catch`; an unexpected throw would not set a non-zero exit. | **Add `.catch` to guarantee non-zero exit** on unexpected throw. |
 | **E2C-SIGN-L24** | Low | Per-line rules strip only `//`; a `.export(…pkcs8…)` inside a `/* */` block comment could false-positive. | Handle block comments to avoid minor false positives. |
 
+### 13.2i E2D-ANCHOR — anchoring findings (from the accepted T130 adversarial review)
+
+T130 review verdict: APPROVE WITH CHANGES — abstraction clean, isolated (canonical + signing only), hash-only at the provider boundary (no plaintext), pluggable, fail-closed with no fabrication possible by construction; failure matrix thoroughly tested. **These findings do not block T131.** M1 must be addressed by **real provider verification in T131** and by the **independent verifier (T2E)**; **L1/L2 should be closed before the anchor-record builder / real-provider integration hardens**; the **fake provider must remain clearly non-authoritative**.
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2D-ANCHOR-M1** | Medium | **Anchoring-time `verifyToken` is provider self-attestation.** `requestAnchor` gates ANCHORED on `provider.verifyToken`; a **compromised in-process provider** could return a fabricated token plus `verifyToken=true`. Not a T130 interface defect, but must be carried forward. | **Real providers (T131) must verify actual TSA / CT / external-authority signatures** (not self-attest). **Authoritative, trust-minimized verification belongs to the independent verifier (T2E)**, re-checking tokens offline against published external public keys / certs from **WORM**, never via the provider object. |
+| **E2D-ANCHOR-L1** | Low | `isWellFormedToken` is **stricter than `anchor-record-1.0`**: the schema leaves `transparency_log` / `dual_custodian` sub-fields **optional**, but the guard requires all of them — a schema-valid real token could be rejected. | **Align with schema optionality** (or deliberately tighten the schema) **before real providers** land. |
+| **E2D-ANCHOR-L2** | Low | `anchored_at` is validated only via `Date.parse`, **not strict RFC3339**, while the record schema uses `format: date-time`. | **Tighten `anchored_at` validation before anchor-record building** (avoid late schema failures). |
+| **E2D-ANCHOR-L3** | Low | `FakeAnchorProvider` verification is **non-cryptographic** (recomputable commitment, no secret; provider-asserted `anchored_at`). | **Dev/test double ONLY — must never be treated as authoritative.** Live validation must use real providers + the independent verifier. |
+| **E2D-ANCHOR-L4** | Low | `dual_custodian` currently models a **single custodian** because the vendored schema cannot represent true two-custodian / 2-of-2 semantics. | Track for the **future `dual_custodian` implementation**. |
+| **E2D-ANCHOR-L5** | Low | **Timeout race** drops a late-but-valid provider response as `pending`. | Relies on **idempotent retry / re-request in T134** (re-request over the same hash). |
+| **E2D-ANCHOR-L6** | Low | No explicit tests that provider-returned `pending` / `failed` outcomes **pass through unchanged**. | **Add the pass-through tests.** |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
