@@ -801,6 +801,21 @@ T123 review verdict: APPROVE WITH CHANGES — registry correct, immutable, fail-
 | **E2C-SIGN-L18** | Low | **Crypto-free registry does not bind declared `algorithm` to `public_key` material** (e.g. an `ecdsa-p384` record with ed25519 material is accepted; caught only at verify). Inherent to the crypto-free design. | The **verification layer owns algorithm↔material binding.** Track alongside **E2C-SIGN-M5**. |
 | **E2C-SIGN-L19** | Low | **Test gaps.** The `revoke()`-path timestamp guards (`isRealInstant(revokedAt)`, `revokedAt < created_at`), frozen-record immutability, and the L14 created_at validity-window divergence are untested (guards exist; behavior correct). | **Add future tests:** revoke timestamp guards; frozen-record immutability; created_at validity-window behavior. |
 
+### 13.2h E2C-SIGN — signing-key-hygiene gate findings (from the accepted T124 adversarial review)
+
+T124 review verdict: APPROVE WITH CHANGES — runtime custody proof thorough and correct; positive controls mandatory + fail-closed; ACs met; false positives well-controlled. Findings are gate-hardening + CI-wiring. **These findings do not block T130.** Current protection still runs through the vitest test (a real leak fails CI), but a dedicated CI proof job is required. **E2C-SIGN-MCI must be closed before T164**; **MFN1/MFN2 should be closed before live validation / security sign-off**.
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2C-SIGN-MCI** | Medium | `signing-key-hygiene` exists as an npm script + vitest test but is **not wired as a dedicated CI job** (with `-- --check --report` and proof-artifact upload) like its five sibling proof gates. The `--check` exit contract and published artifact are unenforced in CI; protection currently rides on the vitest test. | **Add a `signing-key-hygiene` CI job** mirroring `secret-hygiene` (`npm run signing-key-hygiene -- --check --report` + artifact upload). **Must be closed before the T164 security sign-off.** |
+| **E2C-SIGN-MFN1** | Medium | Static scan detects **PEM-armored** private keys but misses **base64/hex private-key assignments** (e.g. `PRIVATE_KEY=<base64>`, `SIGNING_PRIVATE_KEY=<hex>`) — a realistic env leak form. | **Add env/compose/source private-key-token assignment detection** (token + inline base64/hex value). Close before live validation / security sign-off. |
+| **E2C-SIGN-MFN2** | Medium | `PRIVATE_KEY_EXPORT` is **single-line only**; a multi-line `.export({ type: 'pkcs8' })` may evade detection. | **Normalize/join source before matching** (whitespace-insensitive). Close before live validation / security sign-off. |
+| **E2C-SIGN-L20** | Low | Custom logger calls (e.g. `logger.info(privateKey)`, pino/winston) are not covered (shared limitation with `secret-hygiene`). | Consider covering custom-logger call sites. |
+| **E2C-SIGN-L21** | Low | Scanned roots exclude `tools/`, `apps/`, and `conformance/`. | Broaden scanned roots (mind self-flag exclusion for `conformance/`). |
+| **E2C-SIGN-L22** | Low | JWK private (`"d":`) / raw-DER private-key forms are not detected. | Add JWK/raw-DER private-key detection. |
+| **E2C-SIGN-L23** | Low | CLI `void main()` has no `.catch`; an unexpected throw would not set a non-zero exit. | **Add `.catch` to guarantee non-zero exit** on unexpected throw. |
+| **E2C-SIGN-L24** | Low | Per-line rules strip only `//`; a `.export(…pkcs8…)` inside a `/* */` block comment could false-positive. | Handle block comments to avoid minor false positives. |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
