@@ -28,3 +28,12 @@ export {
   type PreviousSegmentRef,
   type BuildSegmentManifestOptions,
 } from './manifest.js';
+// Intra-segment row-hash chain verification (Sprint-2 / EDAM-T112). Fail-closed
+// re-verify; no segment_hash / cross-segment linkage / seal / WORM write.
+export {
+  verifySegmentChain,
+  type ChainVerification,
+  type ChainFailure,
+  type ChainFailureRule,
+  type ObjectChainCheck,
+} from './chain.js';
