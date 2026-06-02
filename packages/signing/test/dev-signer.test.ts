@@ -106,6 +106,56 @@ describe('DevEd25519Signer (T121)', () => {
     expect(verifyAnchorSignature(p, sig2, revokedLater.getPublicKey(revokedLater.keyId))).toBe(true);
   });
 
+  it('rejects modified signature bytes (E2C-SIGN-L6)', async () => {
+    const signer = new DevEd25519Signer();
+    const p = payload();
+    const sig = await signer.sign(p);
+    const raw = Buffer.from(sig.signature, 'base64');
+    raw[0] = raw[0]! ^ 0xff; // flip a byte
+    const mutated = { ...sig, signature: raw.toString('base64') };
+    expect(verifyAnchorSignature(p, mutated, signer.getPublicKey(signer.keyId))).toBe(false);
+    // garbage / non-base64 signature -> false, never throws
+    expect(verifyAnchorSignature(p, { ...sig, signature: '!!!not-base64!!!' }, signer.getPublicKey(signer.keyId))).toBe(false);
+  });
+
+  it('rejects signature substitution — a valid signature from another payload/key (E2C-SIGN-L6)', async () => {
+    const signer = new DevEd25519Signer();
+    const pA = payload();
+    const pB = buildAnchorPayload({ ...head, segment_sequence: 1 }, OPTS);
+    const sigB = await signer.sign(pB); // valid signature, but for pB
+    // Same key, but the signature belongs to a different payload.
+    expect(verifyAnchorSignature(pA, sigB, signer.getPublicKey(signer.keyId))).toBe(false);
+    // A valid signature from a DIFFERENT key, relabeled with this key's id, also fails.
+    const other = new DevEd25519Signer();
+    const sigOther = await other.sign(pA);
+    const spoofed = { ...sigOther, signing_key_id: signer.keyId };
+    expect(verifyAnchorSignature(pA, spoofed, signer.getPublicKey(signer.keyId))).toBe(false);
+  });
+
+  it('M4: rejects extra/unknown fields — no structured-oracle smuggling into the signed bytes', async () => {
+    const signer = new DevEd25519Signer();
+    const smuggled = { ...payload(), leaked: 'before=secret-plaintext' } as unknown as AnchorPayload;
+    await expect(signer.sign(smuggled)).rejects.toThrow();
+    // The serializer itself reconstructs/validates and refuses unknown keys too.
+    expect(() => anchorSigningMessage(smuggled)).toThrow();
+  });
+
+  it('L4: rejects an impossible RFC3339 instant even though it is shaped correctly', async () => {
+    const signer = new DevEd25519Signer();
+    await expect(signer.sign({ ...payload(), signed_at: '2026-13-45T99:99:99Z' })).rejects.toThrow();
+    await expect(signer.sign({ ...payload(), signed_at: '2026-06-01T10:05:01+25:00' })).rejects.toThrow();
+  });
+
+  it('L5: rejects a public key whose material does not match its content-addressed dev id', async () => {
+    const a = new DevEd25519Signer();
+    const b = new DevEd25519Signer();
+    const p = payload();
+    const sig = await a.sign(p);
+    // Spoofed registry entry: A's id + A's signature, but B's public material.
+    const spoofedPub = { ...b.getPublicKey(b.keyId)!, signing_key_id: a.keyId };
+    expect(verifyAnchorSignature(p, sig, spoofedPub)).toBe(false);
+  });
+
   it('H1 closed: sign accepts only a valid typed payload — malformed payloads are rejected, never signed', async () => {
     const signer = new DevEd25519Signer();
     // Not a hash structure / smuggled plaintext -> rejected before any signing.

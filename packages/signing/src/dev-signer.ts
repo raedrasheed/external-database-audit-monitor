@@ -24,6 +24,9 @@ import { anchorSigningMessage, assertValidAnchorPayload } from './anchor-payload
 
 const ED25519 = 'ed25519' as const;
 
+/** Prefix of content-addressed dev key ids (id = prefix + first 16 hex of sha256(SPKI)). */
+const DEV_KEY_ID_PREFIX = 'edam-dev-ed25519-';
+
 /** A published key registration: the PUBLIC half plus its lifecycle metadata. */
 export interface KeyRegistration {
   algorithm: 'ed25519';
@@ -52,7 +55,7 @@ function spkiDerBase64(publicKey: KeyObject): string {
 /** Derive a stable, content-addressed key id from the SPKI public key. */
 function deriveKeyId(spkiB64: string): string {
   const digest = createHash('sha256').update(Buffer.from(spkiB64, 'base64')).digest('hex');
-  return `edam-dev-ed25519-${digest.slice(0, 16)}`;
+  return `${DEV_KEY_ID_PREFIX}${digest.slice(0, 16)}`;
 }
 
 /**
@@ -139,6 +142,13 @@ export function verifyAnchorSignature(
     if (signature.signing_key_id !== publicKey.signing_key_id) return false;
     if (signature.algorithm !== publicKey.algorithm) return false;
     if (publicKey.algorithm !== ED25519) return false;
+    // Content-addressed key-id binding (E2C-SIGN-L5): for dev keys the id is the
+    // sha256 of the SPKI, so a mismatched (key id, public material) pair — a
+    // spoofed registry entry — is rejected even before crypto. HSM-issued ids
+    // (other prefixes) are opaque and intentionally not recomputed here.
+    if (publicKey.signing_key_id.startsWith(DEV_KEY_ID_PREFIX) && deriveKeyId(publicKey.public_key) !== publicKey.signing_key_id) {
+      return false;
+    }
     // Honor revocation: a key revoked at-or-before the signing instant is invalid.
     if (publicKey.revoked_at != null) {
       const revoked = Date.parse(publicKey.revoked_at);
