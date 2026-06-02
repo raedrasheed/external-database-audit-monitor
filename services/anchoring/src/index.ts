@@ -44,3 +44,15 @@ export {
   type SignedTreeHead,
   type TransparencyLogVerifyResult,
 } from './transparency-log.js';
+export {
+  buildAnchorRecord,
+  buildAnchorRef,
+  UnverifiedAnchorError,
+  AnchorHeadMismatchError,
+  AnchorRecordSchemaError,
+  type AnchorRecord,
+  type AnchorRecordHead,
+  type AnchorRecordHsmSignature,
+  type AnchorRef,
+  type BuildAnchorRecordInput,
+} from './anchor-record.js';

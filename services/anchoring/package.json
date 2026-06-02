@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@edam/canonical": "*",
+    "@edam/contracts": "*",
     "@edam/signing": "*"
   }
 }
