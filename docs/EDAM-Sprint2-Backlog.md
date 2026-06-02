@@ -953,6 +953,18 @@ T142 review verdict: APPROVE WITH CHANGES — §10 steps 4-6 (cross_segment_cont
 | **T142-L2** | Low | **Sub-range verification (`a > 0`) currently fail-closes** — a non-genesis-rooted range cannot pass both `cross_segment_continuity` (predecessor absent ⇒ MISSING_PREVIOUS) and `no_missing_segment` (predecessor present ⇒ out-of-scope). | A **predecessor-anchor mechanism** (supply segment `a−1`'s `segment_hash` as a boundary input without counting it in scope) will be needed later for continuity-preserving export verification (**T145**). Safe (fail-closed) for T142. |
 | **T142-L3** | Low | **Test gaps:** forged-clean offset gap, per-object `gap_detected=true`, cross-segment offset overlap, sub-range verification, empty-set-with-scope. | Add these negative controls during T143/T144 test hardening. |
 
+### 13.2s E2E-ANCHOR-PROOF — `@edam/anchor-proof` extraction findings (from the accepted review)
+
+Extraction review verdict: APPROVE WITH CHANGES — the RFC-3161 + RFC-6962 verify/sign/Merkle/STH logic is **byte-identical** to the pre-extraction source (diffed), provider-build and verifier-check now share **one** implementation path (no drift possible), key-holding + provider tree-state remain in `services/anchoring`, and the `@edam/anchoring` barrel keeps every consumer working (strictly additive; `TransparencyLogProof` now exported). **No Critical findings. No High findings. No Medium findings. Extraction accepted with changes.** **`@edam/anchor-proof` is pure enough for verifier use** (deps: `@edam/canonical` + `node:crypto`; no services/WORM/signing-private/key material/provider state). **No provider behavior drift occurred. No crypto, signature, Merkle, or token-verification drift occurred** (moved logic byte-identical; domain tags/prefixes unchanged; 72 `services/anchoring` tests pass unchanged; determinism rig exit 0; build↔verify round-trips pass). **CT6 is closed via exported `TransparencyLogProof`.** **Full suite (605 passed / 9 skipped) and determinism rig remained green.** **T143 may proceed after this tracking commit; no mandatory fixes are required before T143.**
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **AP-L1** | Low | **Intra-package helper duplication** — `@edam/anchor-proof`'s `rfc3161.ts` and `transparency-log.ts` each define their own `isRecord` / `isRealInstant` / `RFC3339_RE`. **Pre-existing** (each original `services/anchoring` module had its own copies) and **preserved verbatim** by the deliberately-minimal move — cosmetic and behavior-preserving. | Optionally consolidate into a shared internal util later; not blocking. |
+
+**`@edam/anchor-proof` readiness notes (carry forward, not defects):**
+- **AP-N1** — **T143 must adapt `TrustedAnchorCert`** (T140 `{ ref, algorithm, public_key, ... }`) into the verifier certificate shapes (`DevTsaCertificate` `{ tsa_cert_ref, ... }` / `DevLogCertificate` `{ log_id, ... }`) when calling `verifyRfc3161Token` / `verifyTransparencyLogToken`.
+- **AP-N2** — **T147 verifier-isolation allow-list must explicitly include `@edam/anchor-proof`** (pure, verifier-importable) alongside `@edam/canonical` / `@edam/contracts` / `@edam/evidence` / `@edam/cce-model`.
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
