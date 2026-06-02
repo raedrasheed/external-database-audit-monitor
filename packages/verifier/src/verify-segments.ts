@@ -20,12 +20,15 @@ import {
   type SegmentManifestCore,
   type SegmentChainInput,
 } from '@edam/evidence';
+import type { AnchorRecord } from './verify-anchor.js';
 
 /** A parsed segment ready for re-verification: its manifest + the ordered objects it covers. */
 export interface VerifierSegment {
   manifest: SegmentManifest;
   /** Ordered CCE objects, index-aligned with `manifest.object_list` / `object_hash_list`. */
   objects: readonly Cce[];
+  /** Optional parsed anchor-record-1.0 for this segment's head (§10 steps 7-8; T143). */
+  anchorRecord?: AnchorRecord;
 }
 
 /** A single check outcome with located offending ids. */

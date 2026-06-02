@@ -17,6 +17,8 @@
 import { VerificationReportBuilder, ALL_CHECKS, type CheckName, type VerificationReport, type VerifierIdentity } from './report.js';
 import { recomputeSegment, type VerifierSegment, type CheckOutcome } from './verify-segments.js';
 import { recomputeCrossSegment, recomputeNoMissingSegment, recomputeNoMissingEvent } from './verify-continuity.js';
+import { verifyAnchorForSegment } from './verify-anchor.js';
+import type { TrustedSigningKeyDirectory, TrustedAnchorCertDirectory } from './trust.js';
 import type { VerifierInput, VerificationScope } from './input.js';
 
 export interface VerifyOptions {
@@ -34,6 +36,10 @@ export interface VerifySegmentsArgs {
   db_id: string;
   scope: VerificationScope;
   segments: readonly VerifierSegment[];
+  /** Trusted published signing keys (T140). When both directories are provided, §10 steps 7-8 run; else they are SKIPPED. */
+  trustedKeys?: TrustedSigningKeyDirectory;
+  /** Trusted published anchor-authority certs (T140). */
+  trustedCerts?: TrustedAnchorCertDirectory;
   verifier?: VerifierIdentity;
   reportId?: string;
   generatedAt?: string;
@@ -41,8 +47,28 @@ export interface VerifySegmentsArgs {
 
 const DEFAULT_VERIFIER: VerifierIdentity = { type: 'independent_external' };
 
-/** The §10 checks NOT implemented through T142 (HSM/anchor-token = T143; projection = T144); emitted SKIPPED. */
-const SKIPPED_CHECKS: readonly CheckName[] = ['hsm_signature', 'anchor_token', 'projection_consistency'];
+/**
+ * Aggregate a per-segment anchor outcome (segment-prefixed offending ids; PASS iff
+ * all segments PASS). Details from BOTH PASS and FAIL outcomes are surfaced, so the
+ * token timestamp (gen_time / sth_time) is recorded in the report even on PASS.
+ */
+function aggregateAnchor(items: readonly { segId: string; outcome: CheckOutcome }[]): CheckOutcome {
+  const offending: string[] = [];
+  const details: string[] = [];
+  let anyFail = false;
+  for (const { segId, outcome } of items) {
+    if (outcome.result === 'FAIL') {
+      anyFail = true;
+      for (const id of outcome.offending_ids) offending.push(`${segId}/${id}`);
+    }
+    if (outcome.details) details.push(`${segId}: ${outcome.details}`);
+  }
+  return {
+    result: anyFail ? 'FAIL' : 'PASS',
+    offending_ids: offending,
+    ...(details.length > 0 ? { details: details.join(' | ') } : {}),
+  };
+}
 
 /** Aggregate one check across segments: PASS iff all PASS; offending ids located per-segment. */
 function aggregate(segments: readonly VerifierSegment[], pick: (r: ReturnType<typeof recomputeSegment>) => CheckOutcome): CheckOutcome {
@@ -96,8 +122,21 @@ export function verifySegments(args: VerifySegmentsArgs): VerificationReport {
   addCheck(builder, 'cross_segment_continuity', recomputeCrossSegment(args.segments));
   addCheck(builder, 'no_missing_segment', recomputeNoMissingSegment(args.segments, args.scope));
   addCheck(builder, 'no_missing_event', recomputeNoMissingEvent(args.segments));
-  // Deferred (T143/T144).
-  for (const check of SKIPPED_CHECKS) builder.skip(check);
+
+  // Steps 7-8 (T143): only when trusted published material is supplied; else SKIPPED (fail-closed overall).
+  if (args.trustedKeys !== undefined && args.trustedCerts !== undefined) {
+    const keys = args.trustedKeys;
+    const certs = args.trustedCerts;
+    const results = args.segments.map((seg) => ({ segId: seg.manifest.segment_id, ...verifyAnchorForSegment(seg, keys, certs) }));
+    addCheck(builder, 'hsm_signature', aggregateAnchor(results.map((r) => ({ segId: r.segId, outcome: r.hsm_signature }))));
+    addCheck(builder, 'anchor_token', aggregateAnchor(results.map((r) => ({ segId: r.segId, outcome: r.anchor_token }))));
+  } else {
+    builder.skip('hsm_signature');
+    builder.skip('anchor_token');
+  }
+
+  // Deferred (T144): projection consistency stays advisory + SKIPPED.
+  builder.skip('projection_consistency');
 
   return builder.build();
 }

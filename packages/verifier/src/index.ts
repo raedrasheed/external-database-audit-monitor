@@ -60,4 +60,12 @@ export {
   sortBySequence,
 } from './verify-continuity.js';
 
+export {
+  verifyAnchorForSegment,
+  type AnchorRecord,
+  type AnchorRecordHead,
+  type AnchorRecordHsmSignature,
+  type AnchorRecordProvider,
+} from './verify-anchor.js';
+
 export { verify, verifySegments, type VerifyOptions, type VerifySegmentsArgs } from './verify.js';
