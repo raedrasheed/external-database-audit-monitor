@@ -117,12 +117,16 @@ export class VerificationReportBuilder {
     return this.add({ check, result: 'SKIPPED', details });
   }
 
-  /** Fail-closed overall result (T140-M1): PASS only if every REQUIRED check ran and passed. */
+  /**
+   * Fail-closed overall result (T140-M1, refined in T144): `PASS` only when every
+   * REQUIRED integrity check ran and PASSed; a required check that is FAIL or
+   * SKIPPED ⇒ FAIL. `projection_consistency` is ADVISORY (not a REQUIRED check):
+   * a projection drift FAIL does NOT fail the overall integrity result (§10.2).
+   */
   #computeOverall(): 'PASS' | 'FAIL' {
-    if (this.#checks.some((c) => c.result === 'FAIL')) return 'FAIL';
     const byName = new Map(this.#checks.map((c) => [c.check, c.result]));
     for (const required of REQUIRED_CHECKS) {
-      if (byName.get(required) !== 'PASS') return 'FAIL'; // missing or SKIPPED required check ⇒ not PASS
+      if (byName.get(required) !== 'PASS') return 'FAIL'; // missing, SKIPPED, or FAIL required check ⇒ not PASS
     }
     return 'PASS';
   }

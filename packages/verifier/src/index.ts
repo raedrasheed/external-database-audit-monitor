@@ -68,4 +68,6 @@ export {
   type AnchorRecordProvider,
 } from './verify-anchor.js';
 
+export { recomputeProjectionConsistency, type ProjectionSnapshot } from './verify-projection.js';
+
 export { verify, verifySegments, type VerifyOptions, type VerifySegmentsArgs } from './verify.js';

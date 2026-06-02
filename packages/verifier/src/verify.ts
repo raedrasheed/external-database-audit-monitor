@@ -18,6 +18,7 @@ import { VerificationReportBuilder, ALL_CHECKS, type CheckName, type Verificatio
 import { recomputeSegment, type VerifierSegment, type CheckOutcome } from './verify-segments.js';
 import { recomputeCrossSegment, recomputeNoMissingSegment, recomputeNoMissingEvent } from './verify-continuity.js';
 import { verifyAnchorForSegment } from './verify-anchor.js';
+import { recomputeProjectionConsistency, type ProjectionSnapshot } from './verify-projection.js';
 import type { TrustedSigningKeyDirectory, TrustedAnchorCertDirectory } from './trust.js';
 import type { VerifierInput, VerificationScope } from './input.js';
 
@@ -40,6 +41,8 @@ export interface VerifySegmentsArgs {
   trustedKeys?: TrustedSigningKeyDirectory;
   /** Trusted published anchor-authority certs (T140). */
   trustedCerts?: TrustedAnchorCertDirectory;
+  /** Optional projection snapshot (§10.9). When provided, projection_consistency runs (advisory); else SKIPPED. */
+  projection?: ProjectionSnapshot;
   verifier?: VerifierIdentity;
   reportId?: string;
   generatedAt?: string;
@@ -135,8 +138,13 @@ export function verifySegments(args: VerifySegmentsArgs): VerificationReport {
     builder.skip('anchor_token');
   }
 
-  // Deferred (T144): projection consistency stays advisory + SKIPPED.
-  builder.skip('projection_consistency');
+  // Step 9 (T144): projection consistency is ADVISORY — drift FAILs this check but
+  // does NOT fail overall integrity (§10.2). Absent projection => SKIPPED.
+  if (args.projection !== undefined) {
+    addCheck(builder, 'projection_consistency', recomputeProjectionConsistency(args.segments, args.projection));
+  } else {
+    builder.skip('projection_consistency');
+  }
 
   return builder.build();
 }
