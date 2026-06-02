@@ -30,6 +30,7 @@
     "evidence-schemas-verbatim": "tsx conformance/scripts/evidence-schemas-verbatim.ts",
     "worm-no-mutate-proof": "tsx conformance/scripts/worm-no-mutate-proof.ts",
     "secret-hygiene": "tsx conformance/scripts/secret-hygiene.ts",
+    "signing-key-hygiene": "tsx conformance/scripts/signing-key-hygiene.ts",
     "invariants": "tsx conformance/scripts/invariant-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",

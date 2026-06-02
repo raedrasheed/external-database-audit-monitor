@@ -11,6 +11,7 @@
     "@edam/cce-model": "*",
     "@edam/canonical": "*",
     "@edam/normalization": "*",
-    "@edam/cdc-collector": "*"
+    "@edam/cdc-collector": "*",
+    "@edam/signing": "*"
   }
 }
