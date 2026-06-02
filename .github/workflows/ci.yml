@@ -189,6 +189,23 @@ jobs:
           name: verifier-isolation-proof
           path: verifier-isolation-proof.json
 
+  # WV-1…WV-14 conformance suite (Epic E2E / EDAM-T148, WV-1…WV-14).
+  evidence-conformance:
+    name: evidence-conformance (WV-1…WV-14)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
+      - name: Assert WV-1…WV-14 against the real implementations (+ emit proof)
+        run: npm run evidence-conformance -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidence-conformance-report
+          path: evidence-conformance-report.json
+
   # Masking & secret-hygiene proof (Epic E8 / EDAM-T053).
   secret-hygiene:
     name: secret-hygiene (INV-2/PII)

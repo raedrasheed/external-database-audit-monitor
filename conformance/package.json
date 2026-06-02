@@ -3,16 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "EDAM conformance fixtures and harness (EDAM-T050)",
+  "description": "EDAM conformance fixtures and harness (EDAM-T050); WV-1…WV-14 conformance suite (EDAM-T148)",
   "scripts": {
     "pin": "tsx scripts/pin-golden-values.ts"
   },
   "dependencies": {
     "@edam/cce-model": "*",
     "@edam/canonical": "*",
+    "@edam/contracts": "*",
+    "@edam/evidence": "*",
+    "@edam/anchor-proof": "*",
     "@edam/normalization": "*",
     "@edam/cdc-collector": "*",
     "@edam/signing": "*",
-    "@edam/anchoring": "*"
+    "@edam/anchoring": "*",
+    "@edam/worm": "*",
+    "@edam/verifier": "*",
+    "@edam/verifier-cli": "*",
+    "@edam/export": "*"
   }
 }
