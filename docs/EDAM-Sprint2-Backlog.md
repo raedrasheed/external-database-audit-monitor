@@ -748,6 +748,20 @@ T114 review verdict: APPROVE WITH CHANGES (E2C may proceed). The following are t
 
 **Notes (binding):** these findings **do not block E2C / T120** (the signing layer consumes the emitted/derivable chain head and is independent of seal atomicity). They **do block** the Sprint-2 live evidence validation and security sign-off (T160–T164) — the live tamper/outage drills (T162) and durability claims would otherwise hit a wedged partial seal. Resolution may introduce a future **content-aware idempotent WORM write path / `putIfAbsentOrEqual`** (no `WormStore` contract change is being made now).
 
+### 13.2d E2C-SIGN — signing-layer findings (from the accepted T120 adversarial review)
+
+T120 review verdict: APPROVE WITH CHANGES — H1/M1 (and M2/M3) to be closed **in T121** (do not ship a generic oracle).
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2C-SIGN-H1** | High | `Signer.sign(payload: Uint8Array)` is a **generic signing oracle**; "signs a hash structure only" (INV-EV-2) is convention-only. | **Close in T121.** Change the interface so the signer accepts an `AnchorPayload` and canonicalizes internally; the dev signer must not sign arbitrary bytes. |
+| **E2C-SIGN-M1** | Medium | **No domain separation** on the signed bytes. | **Close in T121.** Sign over a fixed domain tag `edam-anchor-payload-v1` + canonical payload. |
+| **E2C-SIGN-M2** | Medium | Anchor-payload validation gaps. | **Close in T121.** Validate before signing: `signed_at` non-empty RFC3339; `segment_sequence` integer ≥ 0; `db_id`/`segment_id` non-empty (in addition to the existing hash-token + `head_count` checks). |
+| **E2C-SIGN-M3** | Medium | Algorithm binding. | **Address in T121 verify helper / T2E.** Verification must use the **published public key's** algorithm; reject unknown `signing_key_id`; reject algorithm mismatch; (and honor `revoked_at` vs `signed_at`). |
+| **E2C-SIGN-L1** | Low | Anchor payload not in the cross-target determinism gate. | Add to the T115 evidence-determinism rig. |
+| **E2C-SIGN-L2** | Low | No dependency-isolation gate for `@edam/signing`. | Add a `signing` isolation check (alongside the T147 verifier-isolation gate). |
+| **E2C-SIGN-L3** | Low | Isolated verifier (T2E) must reuse/re-specify the anchor-payload canonicalization. | The T121 verify helper (pure; `@edam/canonical` + `node:crypto` only) is reusable by the isolated verifier; confirm under T147. |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
