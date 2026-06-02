@@ -830,6 +830,20 @@ T130 review verdict: APPROVE WITH CHANGES — abstraction clean, isolated (canon
 | **E2D-ANCHOR-L5** | Low | **Timeout race** drops a late-but-valid provider response as `pending`. | Relies on **idempotent retry / re-request in T134** (re-request over the same hash). |
 | **E2D-ANCHOR-L6** | Low | No explicit tests that provider-returned `pending` / `failed` outcomes **pass through unchanged**. | **Add the pass-through tests.** |
 
+### 13.2j E2D-ANCHOR — RFC-3161 provider findings (from the accepted T131 adversarial review)
+
+T131 review verdict: APPROVE WITH CHANGES — cryptographically sound dev TSA: real Ed25519-signed RFC-3161-modeled token + a pure, cert-parameterized verifier detecting every tamper/forgery/replay variant; hash-only input; non-exportable TSA key. **These findings do not block T132; T132 may proceed.** The **M1 residual must be closed by T2E** (verify against a trusted published TSA cert) **before independent-verifier sign-off**. The **fake/dev TSA must never be treated as production authority**.
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2D-ANCHOR-M1-RESIDUAL** | Medium | T131 closes **real token generation + a pure cert-parameterized verification** (`verifyRfc3161Token`). **M1 is not fully closed:** `requestAnchor` still trusts `provider.verifyToken` (the provider's **self-held** cert) at anchoring time, so a compromised in-process provider can self-attest a fabricated token. | **Full closure requires T2E** to verify against a **trusted published TSA-certificate source** (resolved from `tsa_cert_ref` via a registry / WORM), **not the provider object**. **T132 should begin the cert-publication / cert-reference plumbing if in scope.** Must be closed by T2E before independent-verifier sign-off. |
+| **E2D-ANCHOR-L7** | Low | TSA **certificate validity window is not modeled**; `verifyRfc3161Token` does not check `gen_time` within certificate validity. | Track for **T2E / real RFC-3161 provider** work (enforce `gen_time ∈ [not_before, not_after]`). |
+| **E2D-ANCHOR-L8** | Low | TSA **certificate revocation is not modeled**. | Track with the **certificate registry / verifier** work (mirror the signing layer's `revoked_at` semantics). |
+| **E2D-ANCHOR-L9** | Low | `tsa_cert_ref` exists in the token, but **no trusted published cert registry exists yet**. | **T132 / T2E must define how `tsa_cert_ref` resolves to trusted public certificate material.** |
+| **E2D-ANCHOR-L10** | Low | No explicit **`gen_time` tamper test** (signature covers it today, but lock the behavior). | Add the gen_time-tamper test. |
+| **E2D-ANCHOR-L11** | Low | No **T2E-style test** where the certificate is obtained from a **separately published source**, not `provider.getCertificate()`. | Add the published-cert verification test. |
+| **E2D-ANCHOR-L12** | Low | **Provider outage / timeout pass-through** is not covered on the real/dev RFC-3161 path. | Cover via the real/dev RFC-3161 provider path or service-level tests (with E2D-ANCHOR-L6). |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
