@@ -1,0 +1,19 @@
+{
+  "name": "@edam/signing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Signing layer: Signer interface (no private material exposed) + canonical anchor payload over a chain head (Sprint-2 / EDAM-T120). Signs a hash structure only. Dev signer = T121; HSM/PKCS#11 = T122.",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*"
+  }
+}
