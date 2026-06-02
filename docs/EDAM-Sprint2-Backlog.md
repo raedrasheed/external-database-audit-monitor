@@ -734,6 +734,20 @@ Still tracked (no fix yet — none is closable without a content-aware WORM read
 
 No code change required by this note — **tracking only**. T112/T113 are not modified.
 
+### 13.2c E2B-SEAL — seal-step findings (from the accepted T114 adversarial review)
+
+T114 review verdict: APPROVE WITH CHANGES (E2C may proceed). The following are tracked; **not fixed now**. They **do not block E2C signing-layer development**, but they **block live validation / security sign-off (T160–T164)**. Resolution may require a **content-aware idempotent WORM write path** (e.g. a `putIfAbsentOrEqual` design / a `WormReader`) — shared root with T106-FM1/FM2.
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2B-SEAL-H1** | High | **Non-atomic / non-idempotent partial seal can wedge a segment chain.** WORM writes are not transactional: object writes may succeed before the manifest write fails (objects orphaned, immutable, undeletable); a manifest may succeed before `emitHead` fails. Re-seal currently **fails** at the first existing object instead of **resuming**, so the segment can never complete — wedging the db_id's contiguous chain. `WRITE_FAILED` also omits the already-written `object_keys`. | OPEN. Make the seal idempotent/resumable (tolerate identical existing objects; treat an existing manifest as seal-complete); return already-written keys. **Must resolve before T160–T164.** Shares root with FM1/FM2. |
+| **E2B-SEAL-M1** | Medium | `emitHead` is unguarded and can throw **after** the WORM writes — `seal()` then rejects, leaving a sealed-but-unsignaled segment. | OPEN. Wrap `emitHead` (best-effort); let the signing stage **pull** the head from the stored manifest (`deriveSegmentHead`). |
+| **E2B-SEAL-M2** | Medium | `EvidenceWriter.append` / DLQ-persistence rejection (F-L1) can **escape** the seal flow (uncaught rejection mid-write). | OPEN. Wrap `append` calls; surface a clean `WRITE_FAILED`. |
+| **E2B-SEAL-M3** | Medium | Re-seal / replay is **not idempotent** — a re-seal of an already/partly-sealed segment returns `WRITE_FAILED` rather than a no-op SEALED. | OPEN. Inherits FM1; resolve with H1. |
+| **E2B-SEAL-M4** | Medium | Manifest/object **retention remains optional** in the sealer's `putOptions` and inherits **T104-H4** (a sealer without `retainUntil` writes evidence with no retention → mutable on a real backend). | OPEN. Enforce/default retention (with T104-H4). |
+
+**Notes (binding):** these findings **do not block E2C / T120** (the signing layer consumes the emitted/derivable chain head and is independent of seal atomicity). They **do block** the Sprint-2 live evidence validation and security sign-off (T160–T164) — the live tamper/outage drills (T162) and durability claims would otherwise hit a wedged partial seal. Resolution may introduce a future **content-aware idempotent WORM write path / `putIfAbsentOrEqual`** (no `WormStore` contract change is being made now).
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
