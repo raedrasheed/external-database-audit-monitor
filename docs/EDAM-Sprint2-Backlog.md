@@ -775,6 +775,19 @@ T121 review verdict: APPROVE WITH CHANGES — H1/M1/M2/M3 closed for the typed h
 | **E2C-SIGN-L7** | Low | `anchorPayloadBytes` (un-domain-separated) is exported beside `anchorSigningMessage`; a future caller could sign/verify the wrong "bytes". | Add a cross-warning doc-comment and/or restrict usage to the determinism rig. |
 | **E2C-SIGN-L8** | Low | Domain separation is **prefix-based** (`tag:` + canonical JSON). Adequate for a single fixed domain; could be prefix-ambiguous if more domains are added. | Record as a future **multi-domain signing** consideration (length-prefixed/structured domain) for when additional signed structures are introduced. |
 
+### 13.2f E2C-SIGN — signing-layer findings (from the accepted T122 adversarial review)
+
+T122 review verdict: APPROVE WITH CHANGES — HSM boundary correct (no private material, no real PKCS#11 pulled in, AnchorPayload-only + domain-separated signing, M4/T121 hardening inherited, fail-closed errors, clean isolation, no-caller-change swap proven). One Medium verification-compatibility gap + Low hardening. **T123 may proceed**; M5 is closed in the isolated-verifier work (not T123); L10 folds into T123's revocation scope.
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| **E2C-SIGN-M5** | Medium | **Verification-compatibility gap.** `Pkcs11Signer` can advertise algorithms from the anchor-record-1.0 enum — `ecdsa-p384` / `rsa-pss-3072` / `ecdsa-p256` — but the shipped `verifyAnchorSignature` supports **Ed25519 only** (`publicKey.algorithm !== 'ed25519' ⇒ false`). Non-Ed25519 HSM signatures would be **emitted but not offline-verifiable by shipped code**, conflicting with A-EV4/WV-5 ("signatures verify offline with the public key"). Tolerable for the T122 stub (dev path is Ed25519) but must be closed. | **Close in isolated-verifier work T2E / T143 / T148** (extend verify to the configured algorithms), **or** constrain the HSM signer/factory to verifier-supported algorithms until then. Not T123. |
+| **E2C-SIGN-L9** | Low | Adapter returns the provider's signature **unverified**; a faulty/compromised provider yields an un-verifiable signature caught only downstream (WV-5). | Add an optional **sign-then-verify self-check** in `Pkcs11Signer.sign` for verifier-supported algorithms (fail fast; upholds fail-closed / no-fabrication). |
+| **E2C-SIGN-L10** | Low | Signer does **not** check `revoked_at` at sign time — it will sign with an already-revoked key and rely on the verifier to reject. | Consider **fail-closed signing with already-revoked keys**. Coordinate with the **T123** rotation/revocation scope. |
+| **E2C-SIGN-L11** | Low | No tests for `provider.sign` throwing (HSM signing failure), provider returning a malformed signature, or a throwing registry. Behavior (propagate / fail closed) appears correct but is unproven. | Add the three failure-path tests. |
+| **E2C-SIGN-L12** | Low | For opaque HSM key ids there is no content-addressing, so the key-id↔material binding relies **entirely on registry integrity**. | **Document the published public-key registry as a trust root** for opaque HSM key ids. Relevant to T123/T2E. |
+| **E2C-SIGN-L13** | Low | Provider/registry failures propagate as raw errors (no typed wrapper), hindering alarm classification (INV-EV-6). | Consider a typed **`Pkcs11SigningError`** wrapper for provider/registry failures. |
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
