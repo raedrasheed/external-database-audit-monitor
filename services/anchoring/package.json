@@ -14,6 +14,7 @@
     }
   },
   "dependencies": {
+    "@edam/anchor-proof": "*",
     "@edam/canonical": "*",
     "@edam/contracts": "*",
     "@edam/signing": "*"

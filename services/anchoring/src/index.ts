@@ -28,22 +28,23 @@ export {
   type RequestAnchorOptions,
 } from './anchor-service.js';
 export { FakeAnchorProvider, type FakeAnchorMode, type FakeAnchorProviderOptions } from './fake-provider.js';
+export { DevRfc3161Provider, type DevRfc3161ProviderOptions } from './rfc3161.js';
+export { DevTransparencyLogProvider, type DevTransparencyLogProviderOptions } from './transparency-log.js';
+// The pure RFC-3161 + transparency-log verifiers and their proof/cert/result
+// types moved to @edam/anchor-proof (shared with the independent verifier;
+// single implementation, no builder<->verifier drift). Re-exported here so the
+// @edam/anchoring public API is unchanged for existing consumers.
 export {
-  DevRfc3161Provider,
   verifyRfc3161Token,
-  type DevRfc3161ProviderOptions,
+  verifyTransparencyLogToken,
   type DevTsaCertificate,
   type TstInfo,
   type Rfc3161VerifyResult,
-} from './rfc3161.js';
-export {
-  DevTransparencyLogProvider,
-  verifyTransparencyLogToken,
-  type DevTransparencyLogProviderOptions,
   type DevLogCertificate,
   type SignedTreeHead,
   type TransparencyLogVerifyResult,
-} from './transparency-log.js';
+  type TransparencyLogProof,
+} from '@edam/anchor-proof';
 export {
   buildAnchorRecord,
   buildAnchorRef,

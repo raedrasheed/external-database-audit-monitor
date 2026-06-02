@@ -1,0 +1,19 @@
+{
+  "name": "@edam/anchor-proof",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure RFC-3161 + RFC-6962 (transparency-log) anchor-proof primitives (EDAM @edam/anchor-proof): canonical TstInfo/STH signing bytes, Merkle leaf/node/tree/inclusion hashing, and the offline token verifiers (verifyRfc3161Token / verifyTransparencyLogToken). Shared by the anchoring providers (build) and the independent verifier (check) so there is ONE implementation and no builder<->verifier drift. Pure; depends only on @edam/canonical + node:crypto. No services / WORM / signing-private / DB.",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*"
+  }
+}

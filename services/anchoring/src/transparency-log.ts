@@ -2,143 +2,38 @@
 //
 // An append-only Merkle transparency log (RFC 6962-style) acting as an external
 // anchor authority (WORM §9.2). Each anchored payload hash is appended as a leaf;
-// the provider returns an inclusion proof to a Signed Tree Head (STH) that is
-// signed by the log's key.
+// the provider returns an inclusion proof to a Signed Tree Head (STH) signed by
+// the log's key.
 //
-// REAL verification, NOT self-attestation (same posture as the dev TSA, T131):
-// the STH carries a genuine Ed25519 signature, and `verifyTransparencyLogToken`
-// re-proves it offline using ONLY the published log cert plus the inclusion
-// proof — so the future independent verifier (T2E) reuses it. The anchoring-time
-// `requestAnchor` path still uses the provider's own cert (E2D-ANCHOR-M1-RESIDUAL,
-// closed by T2E against a trusted published cert).
+// The pure RFC 6962 Merkle hashing (leaf/node/tree/inclusion), the canonical STH
+// signing bytes, the offline verifier, and the proof/cert/result types live in
+// @edam/anchor-proof — shared with the independent verifier so there is ONE
+// implementation and no builder<->verifier drift. This module is the KEY-HOLDING,
+// tree-state-holding provider wrapper only.
 //
-// Merkle hashing follows RFC 6962: leaf = SHA256(0x00 || data), node = SHA256(
-// 0x01 || left || right). The STH/token are modeled (canonical JSON, not RFC 6962
-// wire format); a real CT log + DER/TLS encoding is a production concern. The
-// provider receives ONLY the payload hash; no plaintext (INV-EV-2). The log
-// private key is held in a #field and never exported or logged (INV-EV-4).
+// The STH/token are modeled (canonical JSON, not RFC 6962 wire format); a real CT
+// log + DER/TLS encoding is a production concern. The provider receives ONLY the
+// payload hash; no plaintext (INV-EV-2). The log private key is held in a #field
+// and never exported or logged (INV-EV-4).
 
-import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign as edSign, verify as edVerify, type KeyObject } from 'node:crypto';
-import { serializeCanonical, isHashToken } from '@edam/canonical';
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign as edSign, type KeyObject } from 'node:crypto';
+import { isHashToken } from '@edam/canonical';
+import {
+  leafHashFromPayload,
+  merkleTreeHash,
+  inclusionPath,
+  sthSigningBytes,
+  verifyTransparencyLogToken,
+  type SignedTreeHead,
+  type DevLogCertificate,
+} from '@edam/anchor-proof';
 import type { AnchorOutcome, AnchorProvider, AnchorRequest, AnchorToken } from './types.js';
-
-const STH_DOMAIN = 'edam-dev-ct-sth-v1';
-const RFC3339_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
-const HEX64_RE = /^[0-9a-f]{64}$/;
-const LEAF_PREFIX = Buffer.from([0x00]);
-const NODE_PREFIX = Buffer.from([0x01]);
-
-/** A modeled Signed Tree Head (RFC 6962 §3.5, simplified): the signed root at a tree size. */
-export interface SignedTreeHead {
-  log_id: string;
-  tree_size: number;
-  root_hash: string;
-  sth_time: string;
-}
-
-/** A published dev transparency-log certificate — PUBLIC material only. */
-export interface DevLogCertificate {
-  log_id: string;
-  algorithm: 'ed25519';
-  /** SPKI DER, base64. PUBLIC ONLY. */
-  public_key: string;
-  subject: string;
-}
-
-export interface TransparencyLogVerifyResult {
-  ok: boolean;
-  reason?: string;
-  sth_time?: string;
-}
 
 export interface DevTransparencyLogProviderOptions {
   /** Existing Ed25519 log private key (PEM/PKCS#8). If omitted, a fresh dev key is generated. */
   privateKeyPem?: string;
   /** Deterministic STH time (RFC3339). Defaults to issue-time `now`. */
   sthTime?: string;
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isRealInstant(s: unknown): s is string {
-  return typeof s === 'string' && RFC3339_RE.test(s) && Number.isFinite(Date.parse(s));
-}
-
-function sha256(...parts: Buffer[]): Buffer {
-  const h = createHash('sha256');
-  for (const p of parts) h.update(p);
-  return h.digest();
-}
-
-/** RFC 6962 leaf hash over the 32 raw bytes of a `sha256:` token. */
-function leafHashFromPayload(payloadHash: string): Buffer {
-  return sha256(LEAF_PREFIX, Buffer.from(payloadHash.slice('sha256:'.length), 'hex'));
-}
-
-function nodeHash(left: Buffer, right: Buffer): Buffer {
-  return sha256(NODE_PREFIX, left, right);
-}
-
-/** Largest power of two k with k < n <= 2k (RFC 6962), for n > 1. */
-function largestPowerOfTwoLessThan(n: number): number {
-  let k = 1;
-  while (k << 1 < n) k <<= 1;
-  return k;
-}
-
-/** Merkle Tree Hash over already-hashed leaves (RFC 6962 §2.1). */
-function merkleTreeHash(leaves: readonly Buffer[]): Buffer {
-  const n = leaves.length;
-  if (n === 0) return sha256(Buffer.alloc(0));
-  if (n === 1) return leaves[0]!;
-  const k = largestPowerOfTwoLessThan(n);
-  return nodeHash(merkleTreeHash(leaves.slice(0, k)), merkleTreeHash(leaves.slice(k)));
-}
-
-/** Audit path for leaf m in the tree of leaves (RFC 6962 §2.1.1). */
-function inclusionPath(m: number, leaves: readonly Buffer[]): Buffer[] {
-  const n = leaves.length;
-  if (n === 1) return [];
-  const k = largestPowerOfTwoLessThan(n);
-  if (m < k) return [...inclusionPath(m, leaves.slice(0, k)), merkleTreeHash(leaves.slice(k))];
-  return [...inclusionPath(m - k, leaves.slice(k)), merkleTreeHash(leaves.slice(0, k))];
-}
-
-/** Recompute the root from an inclusion proof (RFC 6962 §2.1.1 verification). */
-function rootFromInclusion(leafIndex: number, treeSize: number, leafHash: Buffer, proof: readonly Buffer[]): Buffer | undefined {
-  if (!Number.isInteger(leafIndex) || !Number.isInteger(treeSize) || leafIndex < 0 || leafIndex >= treeSize) return undefined;
-  let fn = leafIndex;
-  let sn = treeSize - 1;
-  let r = leafHash;
-  for (const p of proof) {
-    if ((fn & 1) === 1 || fn === sn) {
-      r = nodeHash(p, r);
-      while ((fn & 1) === 0 && fn !== 0) {
-        fn >>= 1;
-        sn >>= 1;
-      }
-    } else {
-      r = nodeHash(r, p);
-    }
-    fn >>= 1;
-    sn >>= 1;
-  }
-  return sn === 0 ? r : undefined;
-}
-
-function isValidSth(s: unknown): s is SignedTreeHead {
-  if (!isRecord(s)) return false;
-  if (typeof s.log_id !== 'string' || s.log_id.length === 0) return false;
-  if (!Number.isInteger(s.tree_size) || (s.tree_size as number) < 1) return false;
-  if (typeof s.root_hash !== 'string' || !HEX64_RE.test(s.root_hash)) return false;
-  if (!isRealInstant(s.sth_time)) return false;
-  return true;
-}
-
-function sthSigningBytes(sth: SignedTreeHead): Uint8Array {
-  return new TextEncoder().encode(`${STH_DOMAIN}:${serializeCanonical(sth)}`);
 }
 
 function spkiDerB64(publicKey: KeyObject): string {
@@ -149,56 +44,11 @@ function deriveLogId(spkiB64: string): string {
   return `dev-ct-ed25519-${createHash('sha256').update(Buffer.from(spkiB64, 'base64')).digest('hex').slice(0, 16)}`;
 }
 
-/** The vendored transparency_log proof object (anchor-record-1.0). */
-interface TransparencyLogProof {
-  log_id: string;
-  leaf_index: number;
-  inclusion_proof: string[];
-  signed_tree_head: string;
-}
-
-/**
- * Verify a transparency-log token offline using ONLY the published log cert. The
- * trust-minimized check the independent verifier reuses: the STH signature
- * verifies against the log public key, AND the inclusion proof for the recomputed
- * leaf reproduces the STH root. Returns ok=false (never throws) on any
- * malformed/forged/mismatched input.
- */
-export function verifyTransparencyLogToken(proof: TransparencyLogProof, payloadHash: string, cert: DevLogCertificate): TransparencyLogVerifyResult {
-  try {
-    if (!isHashToken(payloadHash)) return { ok: false, reason: 'invalid_payload_hash' };
-    if (cert.algorithm !== 'ed25519') return { ok: false, reason: 'algorithm_mismatch' };
-    if (!isRecord(proof) || typeof proof.log_id !== 'string' || !Number.isInteger(proof.leaf_index) || !Array.isArray(proof.inclusion_proof) || typeof proof.signed_tree_head !== 'string') {
-      return { ok: false, reason: 'malformed_proof' };
-    }
-    if (proof.log_id !== cert.log_id) return { ok: false, reason: 'log_mismatch' };
-    const envelope: unknown = JSON.parse(Buffer.from(proof.signed_tree_head, 'base64').toString('utf8'));
-    if (!isRecord(envelope) || envelope.signature_algorithm !== 'ed25519' || typeof envelope.signature !== 'string') {
-      return { ok: false, reason: 'malformed_sth' };
-    }
-    const sth = envelope.sth;
-    if (!isValidSth(sth)) return { ok: false, reason: 'malformed_sth' };
-    if (sth.log_id !== cert.log_id) return { ok: false, reason: 'log_mismatch' };
-    // (1) STH signature verifies against the published log public key.
-    const key = createPublicKey({ key: Buffer.from(cert.public_key, 'base64'), format: 'der', type: 'spki' });
-    if (!edVerify(null, Buffer.from(sthSigningBytes(sth)), key, Buffer.from(envelope.signature, 'base64'))) {
-      return { ok: false, reason: 'sth_signature_invalid' };
-    }
-    // (2) Inclusion proof for the recomputed leaf reproduces the STH root.
-    if (!proof.inclusion_proof.every((h) => typeof h === 'string' && HEX64_RE.test(h))) return { ok: false, reason: 'malformed_proof' };
-    const proofBufs = proof.inclusion_proof.map((h) => Buffer.from(h, 'hex'));
-    const root = rootFromInclusion(proof.leaf_index, sth.tree_size, leafHashFromPayload(payloadHash), proofBufs);
-    if (root === undefined || root.toString('hex') !== sth.root_hash) return { ok: false, reason: 'inclusion_invalid' };
-    return { ok: true, sth_time: sth.sth_time };
-  } catch {
-    return { ok: false, reason: 'malformed_token' };
-  }
-}
-
 /**
  * Dev transparency-log provider. Appends each payload hash as a Merkle leaf and
  * returns an inclusion proof to a signed tree head. Holds no plaintext; never
- * exposes the log private key.
+ * exposes the log private key. The Merkle/STH primitives come from
+ * @edam/anchor-proof (the same code the verifier checks against).
  */
 export class DevTransparencyLogProvider implements AnchorProvider {
   readonly provider_type = 'transparency_log' as const;
