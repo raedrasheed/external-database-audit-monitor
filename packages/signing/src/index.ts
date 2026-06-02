@@ -38,3 +38,18 @@ export {
   type PublicKeyRegistry,
 } from './pkcs11-signer.js';
 export { createSigner, type SignerConfig } from './factory.js';
+export {
+  KeyRotationRegistry,
+  UnknownKeyError,
+  RevokedKeyError,
+  KeyNotYetValidError,
+  KeyAlgorithmMismatchError,
+  KeyAlreadyExistsError,
+  CannotRevokeActiveKeyError,
+  DualControlError,
+  InvalidKeyRecordError,
+  type KeyRecord,
+  type KeyStatus,
+  type DualControlApproval,
+  type KeyLifecycleAdmin,
+} from './key-registry.js';
