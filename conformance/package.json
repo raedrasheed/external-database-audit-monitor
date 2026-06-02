@@ -12,6 +12,7 @@
     "@edam/canonical": "*",
     "@edam/normalization": "*",
     "@edam/cdc-collector": "*",
-    "@edam/signing": "*"
+    "@edam/signing": "*",
+    "@edam/anchoring": "*"
   }
 }
