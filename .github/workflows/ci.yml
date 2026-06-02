@@ -172,6 +172,23 @@ jobs:
           name: worm-no-mutate-proof
           path: worm-no-mutate-proof.json
 
+  # Verifier-isolation proof (Epic E2E / EDAM-T147, WV-12 / INV-EV-5).
+  verifier-isolation-proof:
+    name: verifier-isolation-proof (WV-12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
+      - name: Assert verifier imports stay within the allow-list (+ emit proof)
+        run: npm run verifier-isolation-proof -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verifier-isolation-proof
+          path: verifier-isolation-proof.json
+
   # Masking & secret-hygiene proof (Epic E8 / EDAM-T053).
   secret-hygiene:
     name: secret-hygiene (INV-2/PII)

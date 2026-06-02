@@ -18,3 +18,4 @@ secret-hygiene-proof.json
 invariant-report.json
 evidence-schemas-verbatim-proof.json
 worm-no-mutate-proof.json
+verifier-isolation-proof.json

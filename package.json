@@ -32,6 +32,7 @@
     "secret-hygiene": "tsx conformance/scripts/secret-hygiene.ts",
     "signing-key-hygiene": "tsx conformance/scripts/signing-key-hygiene.ts",
     "anchor-no-fabrication": "tsx conformance/scripts/anchor-no-fabrication.ts",
+    "verifier-isolation-proof": "tsx conformance/scripts/verifier-isolation-proof.ts",
     "invariants": "tsx conformance/scripts/invariant-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
