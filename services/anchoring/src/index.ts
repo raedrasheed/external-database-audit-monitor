@@ -28,3 +28,11 @@ export {
   type RequestAnchorOptions,
 } from './anchor-service.js';
 export { FakeAnchorProvider, type FakeAnchorMode, type FakeAnchorProviderOptions } from './fake-provider.js';
+export {
+  DevRfc3161Provider,
+  verifyRfc3161Token,
+  type DevRfc3161ProviderOptions,
+  type DevTsaCertificate,
+  type TstInfo,
+  type Rfc3161VerifyResult,
+} from './rfc3161.js';
