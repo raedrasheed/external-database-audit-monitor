@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@edam/canonical": "*",
+    "@edam/cce-model": "*",
     "@edam/contracts": "*",
     "@edam/evidence": "*"
   }

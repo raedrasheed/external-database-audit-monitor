@@ -71,6 +71,10 @@ function recomputeManifest(segment: VerifierSegment): CheckOutcome {
   const n = ol.length;
   if (manifest.event_count !== n) problems.push(`event_count (${manifest.event_count}) !== object_list.length (${n})`);
   if (ohl.length !== n) problems.push(`object_hash_list.length (${ohl.length}) !== object_list.length (${n})`);
+  // T141-M1: the provided object set must EXACTLY match the manifest's lists —
+  // a truncated or extra object set must fail closed (not just the empty case).
+  if (segment.objects.length !== n) problems.push(`objects.length (${segment.objects.length}) !== object_list.length (${n})`);
+  if (segment.objects.length !== ohl.length) problems.push(`objects.length (${segment.objects.length}) !== object_hash_list.length (${ohl.length})`);
 
   for (let i = 0; i < n; i++) {
     if (ol[i]!.seq !== i) problems.push(`object_list[${i}].seq !== ${i}`);

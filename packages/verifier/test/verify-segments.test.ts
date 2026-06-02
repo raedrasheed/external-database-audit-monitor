@@ -67,17 +67,19 @@ describe('recomputeSegment / verifySegments — §10 steps 1-3 (T141)', () => {
     expect(r.segment_manifest.result).toBe('PASS');
   });
 
-  it('valid chain: verifySegments report has the 3 checks PASS, the rest SKIPPED, and is FAIL-closed overall', () => {
+  it('valid single (genesis) segment: steps 1-6 PASS, T143/T144 SKIPPED, FAIL-closed overall', () => {
     const report = verifySegments({ db_id: 'kafel-dev-mysql', scope: SCOPE, segments: [validSegment()], reportId: '11111111-2222-4333-8444-555555555555', generatedAt: '2026-06-01T12:00:00.000Z' });
     expect(validateVerificationReport(report).valid, JSON.stringify(validateVerificationReport(report).errors)).toBe(true);
     const byName = new Map(report.checks.map((c) => [c.check, c.result]));
-    expect(byName.get('per_object_hash')).toBe('PASS');
-    expect(byName.get('object_chain')).toBe('PASS');
-    expect(byName.get('segment_manifest')).toBe('PASS');
-    for (const c of ['cross_segment_continuity', 'no_missing_segment', 'no_missing_event', 'hsm_signature', 'anchor_token', 'projection_consistency'] as const) {
+    // Steps 1-6 (T141 + T142) all PASS for a valid genesis segment.
+    for (const c of ['per_object_hash', 'object_chain', 'segment_manifest', 'cross_segment_continuity', 'no_missing_segment', 'no_missing_event'] as const) {
+      expect(byName.get(c), c).toBe('PASS');
+    }
+    // T143 (HSM/anchor-token) + T144 (projection) remain SKIPPED.
+    for (const c of ['hsm_signature', 'anchor_token', 'projection_consistency'] as const) {
       expect(byName.get(c)).toBe('SKIPPED');
     }
-    // T140-M1: required checks remain SKIPPED ⇒ overall is NOT PASS.
+    // T140-M1: required checks (HSM/anchor-token) remain SKIPPED ⇒ overall is NOT PASS.
     expect(report.overall_result).toBe('FAIL');
   });
 

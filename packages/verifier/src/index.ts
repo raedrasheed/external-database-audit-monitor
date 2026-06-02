@@ -53,4 +53,11 @@ export {
   type SegmentRecomputeResult,
 } from './verify-segments.js';
 
+export {
+  recomputeCrossSegment,
+  recomputeNoMissingSegment,
+  recomputeNoMissingEvent,
+  sortBySequence,
+} from './verify-continuity.js';
+
 export { verify, verifySegments, type VerifyOptions, type VerifySegmentsArgs } from './verify.js';

@@ -101,11 +101,12 @@ describe('@edam/verifier skeleton (T140)', () => {
     expect(() => parseCertificate('not-a-cert')).toThrow();
   });
 
-  it('isolation: dependency floor is only canonical + contracts + evidence (no writer/worm/signing/anchoring/db)', () => {
+  it('isolation: dependency floor is only the approved pure packages (no writer/worm/signing/anchoring/db)', () => {
     const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '../package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { dependencies?: Record<string, string> };
     const deps = Object.keys(pkg.dependencies ?? {});
-    const allowed = new Set(['@edam/canonical', '@edam/contracts', '@edam/evidence']);
+    // @edam/cce-model is declared (T141-M2): the verifier imports the pure `Cce` type from it.
+    const allowed = new Set(['@edam/canonical', '@edam/cce-model', '@edam/contracts', '@edam/evidence']);
     expect(deps.every((d) => allowed.has(d)), `unexpected deps: ${deps.filter((d) => !allowed.has(d)).join(', ')}`).toBe(true);
     for (const forbidden of ['@edam/worm', '@edam/signing', '@edam/anchoring', '@edam/evidence-writer', '@edam/dlq', '@edam/cdc-collector']) {
       expect(deps.includes(forbidden)).toBe(false);

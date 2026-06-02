@@ -16,6 +16,7 @@
 
 import { VerificationReportBuilder, ALL_CHECKS, type CheckName, type VerificationReport, type VerifierIdentity } from './report.js';
 import { recomputeSegment, type VerifierSegment, type CheckOutcome } from './verify-segments.js';
+import { recomputeCrossSegment, recomputeNoMissingSegment, recomputeNoMissingEvent } from './verify-continuity.js';
 import type { VerifierInput, VerificationScope } from './input.js';
 
 export interface VerifyOptions {
@@ -40,15 +41,8 @@ export interface VerifySegmentsArgs {
 
 const DEFAULT_VERIFIER: VerifierIdentity = { type: 'independent_external' };
 
-/** The §10 checks NOT implemented in T141 (filled by T142-T144); emitted SKIPPED. */
-const SKIPPED_CHECKS: readonly CheckName[] = [
-  'cross_segment_continuity',
-  'no_missing_segment',
-  'no_missing_event',
-  'hsm_signature',
-  'anchor_token',
-  'projection_consistency',
-];
+/** The §10 checks NOT implemented through T142 (HSM/anchor-token = T143; projection = T144); emitted SKIPPED. */
+const SKIPPED_CHECKS: readonly CheckName[] = ['hsm_signature', 'anchor_token', 'projection_consistency'];
 
 /** Aggregate one check across segments: PASS iff all PASS; offending ids located per-segment. */
 function aggregate(segments: readonly VerifierSegment[], pick: (r: ReturnType<typeof recomputeSegment>) => CheckOutcome): CheckOutcome {
@@ -76,11 +70,14 @@ function addCheck(builder: VerificationReportBuilder, check: CheckName, outcome:
 }
 
 /**
- * Verify §10 steps 1-3 over parsed segments and emit a `verification-report-1.0`.
- * per_object_hash / object_chain / segment_manifest are recomputed (PASS for a
- * valid chain; FAIL with located offending ids on tamper); the remaining checks
- * are SKIPPED. Overall is FAIL-CLOSED (never PASS while required checks remain
- * SKIPPED — T140-M1).
+ * Verify §10 steps 1-6 over parsed segments and emit a `verification-report-1.0`.
+ * per_object_hash / object_chain / segment_manifest (steps 1-3) are recomputed
+ * per segment; cross_segment_continuity / no_missing_segment / no_missing_event
+ * (steps 4-6) are recomputed across the whole set (sorted by segment_sequence).
+ * Each is PASS for a valid chain and FAIL with located offending ids on a
+ * tamper/gap/genesis error. hsm_signature / anchor_token (T143) and
+ * projection_consistency (T144) remain SKIPPED, so the overall result is
+ * FAIL-CLOSED (never PASS while required checks remain SKIPPED — T140-M1).
  */
 export function verifySegments(args: VerifySegmentsArgs): VerificationReport {
   const builder = new VerificationReportBuilder({
@@ -91,9 +88,15 @@ export function verifySegments(args: VerifySegmentsArgs): VerificationReport {
     ...(args.generatedAt !== undefined ? { generatedAt: args.generatedAt } : {}),
   });
 
+  // Steps 1-3 (per-segment).
   addCheck(builder, 'per_object_hash', aggregate(args.segments, (r) => r.per_object_hash));
   addCheck(builder, 'object_chain', aggregate(args.segments, (r) => r.object_chain));
   addCheck(builder, 'segment_manifest', aggregate(args.segments, (r) => r.segment_manifest));
+  // Steps 4-6 (across the segment set).
+  addCheck(builder, 'cross_segment_continuity', recomputeCrossSegment(args.segments));
+  addCheck(builder, 'no_missing_segment', recomputeNoMissingSegment(args.segments, args.scope));
+  addCheck(builder, 'no_missing_event', recomputeNoMissingEvent(args.segments));
+  // Deferred (T143/T144).
   for (const check of SKIPPED_CHECKS) builder.skip(check);
 
   return builder.build();
