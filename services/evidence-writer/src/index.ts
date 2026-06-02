@@ -50,3 +50,16 @@ export {
   type CrossSegmentFailure,
   type CrossSegmentFailureRule,
 } from './cross-segment.js';
+// Seal transition + chain-head emit (Sprint-2 / EDAM-T114). Establishes the
+// chain, verifies (T112/T113), writes objects + manifest immutably, emits the
+// head to the signing stage. No signing / no anchoring / no ANCHORED state.
+export {
+  SegmentSealer,
+  establishChain,
+  manifestObjectKey,
+  type SegmentSealerDeps,
+  type SealOutcome,
+  type PreviousSealed,
+  type SealAlarm,
+  type SealAlarmSink,
+} from './sealer.js';
