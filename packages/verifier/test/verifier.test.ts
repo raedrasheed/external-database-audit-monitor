@@ -45,18 +45,20 @@ function validExport(overrides: Partial<EvidenceExportPackage> = {}): EvidenceEx
 }
 
 describe('@edam/verifier skeleton (T140)', () => {
-  it('builds and verify() emits a schema-valid report (export mode)', () => {
+  it('builds and verify() emits a schema-valid report (export mode); FAIL-closed while checks are SKIPPED', () => {
     const report = verify({ mode: 'export', package: validExport() }, { reportId: '33333333-2222-4333-8444-555555555555', generatedAt: '2026-06-01T12:01:00.000Z' });
     expect(validateVerificationReport(report).valid, JSON.stringify(validateVerificationReport(report).errors)).toBe(true);
     expect(report.report_version).toBe('verification-report-1.0');
     expect(report.db_id).toBe('kafel-dev-mysql');
-    expect(report.overall_result).toBe('PASS');
+    // T140-M1: an unwired verify() with all checks SKIPPED must NOT report PASS.
+    expect(report.overall_result).toBe('FAIL');
   });
 
-  it('emits all §10 checks as SKIPPED (structural scaffold, not an attestation)', () => {
+  it('emits all §10 checks as SKIPPED (structural scaffold, not an attestation) and is FAIL-closed', () => {
     const report = verify({ mode: 'export', package: validExport() });
     expect(report.checks.map((c) => c.check)).toEqual([...ALL_CHECKS]);
     expect(report.checks.every((c) => c.result === 'SKIPPED')).toBe(true);
+    expect(report.overall_result).toBe('FAIL');
   });
 
   it('worm mode takes db_id + scope from the input', () => {

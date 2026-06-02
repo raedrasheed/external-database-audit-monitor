@@ -37,6 +37,7 @@ export {
   VerificationReportBuilder,
   VerificationReportError,
   ALL_CHECKS,
+  REQUIRED_CHECKS,
   type CheckName,
   type CheckResult,
   type VerificationCheck,
@@ -45,4 +46,11 @@ export {
   type VerificationReportInit,
 } from './report.js';
 
-export { verify, type VerifyOptions } from './verify.js';
+export {
+  recomputeSegment,
+  type VerifierSegment,
+  type CheckOutcome,
+  type SegmentRecomputeResult,
+} from './verify-segments.js';
+
+export { verify, verifySegments, type VerifyOptions, type VerifySegmentsArgs } from './verify.js';

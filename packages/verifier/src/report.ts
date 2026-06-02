@@ -61,6 +61,15 @@ export const ALL_CHECKS: readonly CheckName[] = [
   'projection_consistency',
 ];
 
+/**
+ * The REQUIRED integrity checks. A fail-closed verification reports `PASS` only
+ * when EVERY required check ran and passed; a required check that is FAIL **or
+ * SKIPPED** ⇒ not PASS (T140-M1). `projection_consistency` is intentionally
+ * excluded — it is advisory (drift is a projection finding, not an integrity
+ * failure — §10.9 / T144), so a SKIPPED projection check does not block PASS.
+ */
+export const REQUIRED_CHECKS: readonly CheckName[] = ALL_CHECKS.filter((c) => c !== 'projection_consistency');
+
 /** Raised when an assembled report fails `verification-report-1.0` validation. */
 export class VerificationReportError extends Error {
   constructor(public readonly errors: unknown) {
@@ -104,13 +113,30 @@ export class VerificationReportBuilder {
   }
 
   /** Mark a check SKIPPED (not yet implemented / out of the current run). */
-  skip(check: CheckName, details = 'not implemented in the T140 skeleton'): this {
+  skip(check: CheckName, details = 'not yet implemented in this verifier stage'): this {
     return this.add({ check, result: 'SKIPPED', details });
   }
 
-  /** Build + schema-validate the report. Throws `VerificationReportError` if invalid. */
+  /** Fail-closed overall result (T140-M1): PASS only if every REQUIRED check ran and passed. */
+  #computeOverall(): 'PASS' | 'FAIL' {
+    if (this.#checks.some((c) => c.result === 'FAIL')) return 'FAIL';
+    const byName = new Map(this.#checks.map((c) => [c.check, c.result]));
+    for (const required of REQUIRED_CHECKS) {
+      if (byName.get(required) !== 'PASS') return 'FAIL'; // missing or SKIPPED required check ⇒ not PASS
+    }
+    return 'PASS';
+  }
+
+  /**
+   * Build + schema-validate the report. Throws `VerificationReportError` if invalid.
+   *
+   * FAIL-CLOSED overall result (T140-M1): `PASS` only when no check FAILed AND
+   * every REQUIRED integrity check ran and passed. A required check that is
+   * missing or SKIPPED ⇒ FAIL (the verifier never reports PASS for an incomplete
+   * verification; the schema has no INDETERMINATE, so incomplete = FAIL).
+   */
   build(): VerificationReport {
-    const overall_result: 'PASS' | 'FAIL' = this.#checks.some((c) => c.result === 'FAIL') ? 'FAIL' : 'PASS';
+    const overall_result = this.#computeOverall();
     const report: VerificationReport = {
       report_version: 'verification-report-1.0',
       report_id: this.#init.reportId ?? randomUUID(),
