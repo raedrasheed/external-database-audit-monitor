@@ -72,6 +72,20 @@ export interface SealReadySegment {
   source_offset_range: { first_offset_key: string; last_offset_key: string; consumed_gtid_set?: string };
   fidelity_summary: { all_healthy: boolean; degraded_count: number; compromised_count: number; reasons: string[] };
   completeness_summary: { gap_detected: boolean; expected_continuous: boolean; notes: string[] };
+  /**
+   * TRANSPORT-ONLY (M-A-INT-1): the exact ordered objects from which
+   * `object_list` and `object_hash_list` were derived. `objects[i]` aligns
+   * EXACTLY with `object_list[i]` and `object_hash_list[i]`. The E2B seal step
+   * (T114) writes THESE to WORM at `object_list[i].worm_object_key` and the chain
+   * re-verify (T112) runs over THESE — so the hashed manifest and the WORM
+   * objects are provably the same set, with no re-fetch.
+   *
+   * NOT part of the manifest and NOT part of any hash input (manifest_hash /
+   * segment_hash are computed over metadata only). This field carries full
+   * (masked-but-real) CCE payloads: it is an in-process handle ONLY — do not log
+   * or serialize `SealReadySegment` wholesale.
+   */
+  readonly objects: readonly Cce[];
 }
 
 export interface AddResult {
@@ -263,6 +277,9 @@ export class SegmentAccumulator {
         reasons: [...reasons].sort(),
       },
       completeness_summary: { gap_detected, expected_continuous: !gap_detected, notes: [] },
+      // Transport-only: the SAME ordered array object_list/object_hash_list were
+      // built from (index-aligned). Excluded from the manifest + all hash inputs.
+      objects: ordered,
     };
   }
 }

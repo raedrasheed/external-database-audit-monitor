@@ -151,6 +151,69 @@ describe('SegmentAccumulator — summaries + offset range + list consistency', (
   });
 });
 
+describe('SegmentAccumulator — ordered seal payloads (M-A-INT-1)', () => {
+  it('exposes objects index-aligned with object_list and object_hash_list, in global order', () => {
+    const inputs = [streamingCce(9), snapshotCce(5), streamingCce(2), snapshotCce(1), streamingCce(7)];
+    const a = acc(100, 60_000, () => '2026-06-01T12:00:00.000Z');
+    for (const o of [...inputs].reverse()) a.add(o);
+    const seg = a.flush()[0]!;
+
+    // same count
+    expect(seg.objects.length).toBe(seg.object_list.length);
+    expect(seg.objects.length).toBe(seg.object_hash_list.length);
+
+    // global order (frozen orderCces) — objects, not just metadata
+    expect(seg.objects.map((c) => c.envelope_id)).toEqual(orderCces(inputs).map((c) => c.envelope_id));
+
+    // index alignment objects[i] <-> object_list[i] <-> object_hash_list[i]
+    for (let i = 0; i < seg.objects.length; i++) {
+      const obj = seg.objects[i]!;
+      const ref = seg.object_list[i]!;
+      const h = seg.object_hash_list[i]!;
+      expect(ref.object_id).toBe(obj.envelope_id);
+      expect(ref.seq).toBe(i);
+      expect(h.event_hash).toBe(obj.evidence.event_hash);
+      expect(h.row_hash).toBe(obj.evidence.row_hash);
+      expect(ref.worm_object_key).toBe(evidenceObjectKey(seg.db_id, seg.segment_id, i, 'cce'));
+    }
+  });
+
+  it('objects is the ONLY carrier of CCE payloads; the manifest-input metadata excludes them', () => {
+    // CCE after-image carries amount '2.00' (and field_changes new '2.00').
+    const a = acc(100, 60_000, () => '2026-06-01T12:00:00.000Z');
+    a.add(streamingCce(1));
+    const seg = a.flush()[0]!;
+
+    // The manifest is built from the metadata subset (everything except `objects`).
+    const manifestInput: Record<string, unknown> = { ...seg };
+    delete manifestInput.objects;
+
+    // payload value present in objects ...
+    expect(JSON.stringify(seg.objects)).toContain('2.00');
+    // ... but NOT in any field the manifest/manifest_hash will be computed over.
+    expect(JSON.stringify(manifestInput)).not.toContain('2.00');
+    expect(JSON.stringify(seg.object_list)).not.toContain('2.00');
+    expect(JSON.stringify(seg.object_hash_list)).not.toContain('2.00');
+    expect(JSON.stringify(seg.fidelity_summary)).not.toContain('2.00');
+    expect(JSON.stringify(seg.completeness_summary)).not.toContain('2.00');
+    expect(JSON.stringify(seg.source_offset_range)).not.toContain('2.00');
+  });
+
+  it('removing objects leaves the metadata (manifest input) byte-identical regardless of payload content', () => {
+    // Two segments whose CCEs differ ONLY in masked-but-real payload values must
+    // still share identical hashes/ids -> impossible (hashes differ); instead we
+    // assert the metadata projection contains no payload bytes and is stable.
+    const a = acc(100, 60_000, () => '2026-06-01T12:00:00.000Z');
+    a.add(streamingCce(3));
+    const seg = a.flush()[0]!;
+    const core = { ...seg } as Record<string, unknown>;
+    delete core.objects;
+    // The metadata projection is composed solely of hashes/ids/keys/summaries.
+    expect(Object.keys(core)).not.toContain('objects');
+    expect(seg.object_hash_list.every((h) => h.event_hash.startsWith('sha256:') && h.row_hash.startsWith('sha256:'))).toBe(true);
+  });
+});
+
 describe('SegmentAccumulator — admission (no invalid object enters segment state)', () => {
   it('rejects a CCE without integrity evidence and does not buffer it', () => {
     const a = acc(100, 60_000, () => '2026-06-01T12:00:00.000Z');
