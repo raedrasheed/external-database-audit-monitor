@@ -92,12 +92,7 @@ describe('buildSegmentManifest (T111)', () => {
   });
 
   it('non-genesis (sequence > 0): requires a previous_segment input and validates (no linkage computed here)', () => {
-    // produce a sequence-1 segment for one db
-    const a = new SegmentAccumulator({ caps: { maxEvents: 2, maxAgeMs: 60_000 }, now: () => '2026-06-01T10:00:00.000Z' });
-    a.add(streamingCce(1));
-    a.add(streamingCce(2)); // seals sequence 0
-    a.add(streamingCce(3));
-    const seg1 = a.flush()[0]!;
+    const seg1 = seq1Segment();
     expect(seg1.segment_sequence).toBe(1);
 
     expect(() => buildSegmentManifest(seg1, { sealedAt: SEALED_AT })).toThrow(/requires a previous_segment/);
@@ -105,5 +100,78 @@ describe('buildSegmentManifest (T111)', () => {
     const m = buildSegmentManifest(seg1, { sealedAt: SEALED_AT, previousSegment: prev });
     expect(m.previous_segment).toEqual(prev);
     expect(validateEvidenceSegmentManifest(m).valid).toBe(true);
+  });
+});
+
+function seq1Segment(): SealReadySegment {
+  const a = new SegmentAccumulator({ caps: { maxEvents: 2, maxAgeMs: 60_000 }, now: () => '2026-06-01T10:00:00.000Z' });
+  a.add(streamingCce(1));
+  a.add(streamingCce(2)); // seals sequence 0
+  a.add(streamingCce(3));
+  return a.flush()[0]!;
+}
+
+describe('buildSegmentManifest — immutability + cross-check hardening (M1/L1/L4)', () => {
+  it('M1: mutating the input SealReadySegment after build does not change the manifest/hash/validation', () => {
+    const seg = genesisSegment();
+    const m = buildSegmentManifest(seg, { sealedAt: SEALED_AT });
+    const snapshot = JSON.stringify(m);
+    const hashBefore = m.manifest_hash;
+
+    // tamper every embedded sub-structure on the ORIGINAL input
+    seg.object_list[0]!.object_id = 'TAMPERED';
+    seg.object_hash_list[0]!.event_hash = ZERO;
+    seg.source_offset_range.first_offset_key = 'TAMPERED';
+    seg.fidelity_summary.reasons.push('tampered');
+    seg.completeness_summary.notes.push('tampered');
+    (seg as { last_row_hash: string }).last_row_hash = ZERO;
+
+    expect(JSON.stringify(m)).toBe(snapshot); // content unchanged
+    expect(m.manifest_hash).toBe(hashBefore); // hash unchanged
+    expect(validateEvidenceSegmentManifest(m).valid).toBe(true); // still valid
+  });
+
+  it('M1: mutating the previousSegment input after build does not change the manifest', () => {
+    const seg1 = seq1Segment();
+    const prev: PreviousSegmentRef = { segment_id: 'seg-000000', segment_sequence: 0, segment_hash: ZERO };
+    const m = buildSegmentManifest(seg1, { sealedAt: SEALED_AT, previousSegment: prev });
+    const hashBefore = m.manifest_hash;
+    prev.segment_hash = 'sha256:' + 'f'.repeat(64); // tamper the input
+    expect(m.previous_segment!.segment_hash).toBe(ZERO);
+    expect(m.manifest_hash).toBe(hashBefore);
+  });
+
+  it('M1: the returned manifest is deep-frozen', () => {
+    const m = buildSegmentManifest(genesisSegment(), { sealedAt: SEALED_AT });
+    expect(Object.isFrozen(m)).toBe(true);
+    expect(Object.isFrozen(m.object_list)).toBe(true);
+    expect(Object.isFrozen(m.object_list[0])).toBe(true);
+    expect(Object.isFrozen(m.object_hash_list)).toBe(true);
+    expect(Object.isFrozen(m.fidelity_summary)).toBe(true);
+    expect(Object.isFrozen(m.source_offset_range)).toBe(true);
+  });
+
+  it('L4: a schema-invalid manifest (bad engine) is rejected via validation', () => {
+    const seg = { ...genesisSegment() };
+    (seg as { engine: string }).engine = 'notanengine';
+    expect(() => buildSegmentManifest(seg, { sealedAt: SEALED_AT })).toThrow(/failed validation/);
+  });
+
+  it('L4: object_hash_list length mismatch is rejected with SegmentManifestError (no TypeError)', () => {
+    const seg = genesisSegment();
+    seg.object_hash_list.pop();
+    expect(() => buildSegmentManifest(seg, { sealedAt: SEALED_AT })).toThrow(SegmentManifestError);
+  });
+
+  it('L4: last_row_hash mismatch is rejected', () => {
+    const seg = genesisSegment();
+    (seg as { last_row_hash: string }).last_row_hash = ZERO;
+    expect(() => buildSegmentManifest(seg, { sealedAt: SEALED_AT })).toThrow(/last_row_hash/);
+  });
+
+  it('L1: a middle per-index object_hash_list/objects mismatch is rejected', () => {
+    const seg = genesisSegment([3, 1, 2]); // n = 3
+    seg.object_hash_list[1]!.event_hash = ZERO; // no longer matches objects[1]
+    expect(() => buildSegmentManifest(seg, { sealedAt: SEALED_AT })).toThrow(/object_hash_list\[1\]/);
   });
 });
