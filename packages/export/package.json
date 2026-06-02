@@ -1,0 +1,23 @@
+{
+  "name": "@edam/export",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence Export Package builder (EDAM-T145): pure producer that assembles a schema-valid evidence-export-package-1.0 (WORM §12.1) with continuity-preserving (genesis-rooted) selection, computes package_hash, signs via an injected ExportSigner, and validates against the vendored schema. Pure; depends only on @edam/canonical + @edam/contracts. WORM write is an optional helper over an injected, locally-typed write port (no concrete WORM implementation imported).",
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@edam/canonical": "*",
+    "@edam/contracts": "*"
+  },
+  "devDependencies": {
+    "@edam/verifier": "*"
+  }
+}
