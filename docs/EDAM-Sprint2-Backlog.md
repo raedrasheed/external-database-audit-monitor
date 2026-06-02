@@ -720,6 +720,20 @@ Still tracked (no fix yet — none is closable without a content-aware WORM read
 | **EDAM-T106-FM2** | Medium | A genuine same-key/different-content conflict is under-classified as `UNEXPECTED_EXCEPTION` rather than a CRITICAL integrity event. | Same root as FM1; introduce a content-aware `putIfAbsentOrEqual` semantic in a later interface revision (deferred). Blocks: T162, T164. |
 | **EDAM-T106-FL1** | Low | `append` rejects if DLQ persistence itself fails; documented in `writer.ts` (no silent drop — the failure surfaces). | Documentation done; no further action. |
 
+### 13.2b E2B-CHAIN-1 — chain establishment (surfaced by T112/T113)
+
+**ID:** E2B-CHAIN-1 · **Status:** OPEN (owned by T114).
+
+**Description:** T112 and T113 successfully *verify* intra-segment and cross-segment row-hash continuity. However, **neither component establishes the chain** — the current ingest path still produces independently-generated CCEs (each `prev_row_hash = GENESIS`), so a real segment's chain is broken and both verifiers correctly fail closed on it.
+
+**T114 is responsible for:**
+- establishing the final ordered `prev_row_hash` linkage (re-derive each object's `prev_row_hash`/`row_hash` in global order from the boundary — the prior segment's `last_row_hash`, or the object-chain genesis for the first segment; `event_hash` is unchanged because it excludes `evidence`);
+- producing the actual chain (and recomputing the hash-dependent segment metadata — `object_hash_list`, `first/last_row_hash`);
+- writing objects to WORM at the final ordered placement (M-A-INT-1 / Option B);
+- invoking T112 (intra-segment) and T113 (cross-segment) verification **before** seal completion, failing closed (VERIFICATION_FAILED + CRITICAL alarm) on any mismatch.
+
+No code change required by this note — **tracking only**. T112/T113 are not modified.
+
 ### 13.3 Gating statement
 The Sprint-2 **security sign-off (T164)** and **live evidence validation (T160–T163)** MUST NOT assert WORM enforcement / INV-EV-1 on the basis of the current MinIO adapter until **H1, H2, H3, and H5** are closed (H4 by T164). Until then, evidence **durability** holds (locked versions persist and are recoverable), but **read-path integrity under a compromised writer is not yet store-enforced**. T106 and subsequent E2A/E2B logic proceed against the stable `WormStore` interface and the in-memory fake, independent of these adapter-hardening items.
 
