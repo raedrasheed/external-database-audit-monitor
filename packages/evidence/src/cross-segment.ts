@@ -1,36 +1,24 @@
-// Segment hash + genesis + cross-segment linkage verification (Sprint-2 / EDAM-T113).
+// Segment hash + genesis + cross-segment linkage verification (Sprint-2 / EDAM-T110; logic from T113).
 //
 // Pure, fail-closed. Computes the WORM §7.2 segment_hash and verifies §7.3/§7.4
-// cross-segment continuity. Computes NO manifest (T111), performs NO intra-segment
-// chain verify (T112), writes NOTHING to WORM, drives NO lifecycle/alarm/seal
-// (T114), and does NO signing/anchoring.
+// cross-segment continuity. Computes NO manifest, performs NO intra-segment chain
+// verify, writes NOTHING, drives NO lifecycle/alarm/seal, and does NO
+// signing/anchoring. Shared by the writer (seal) and the verifier (re-prove).
 //
 //   segment_hash = SHA-256( manifest_hash ‖ last_row_hash ‖ previous_segment_hash )
 //
 // mirroring the FROZEN row_hash construction (token-string concatenation of
 // `sha256:<hex>` values; no new byte layout — INV-4). Genesis (segment_sequence 0)
 // uses previous_segment_hash = the all-zero hash; later segments link to the prior
-// segment's segment_hash and the object chain does not reset across the boundary
-// (the current segment's first object's prev_row_hash equals the prior segment's
-// last_row_hash).
-//
-// NOTE (E2B-CHAIN-1): this VERIFIES the boundary linkage assuming T114 has
-// established the intra-segment chain; it does not establish or fix it.
+// segment's segment_hash and the object chain does not reset across the boundary.
 
 import { sha256Hex, assertHashToken } from '@edam/canonical';
-import type { SegmentManifest } from './manifest.js';
+import type { SegmentHead, SegmentManifest } from './types.js';
+
+export type { SegmentHead } from './types.js';
 
 /** Genesis predecessor for the first segment (WORM §7.3): the all-zero hash. */
 export const GENESIS_PREVIOUS_SEGMENT_HASH = 'sha256:' + '0'.repeat(64);
-
-/** The cryptographic tip of a sealed segment (WORM §7.5). */
-export interface SegmentHead {
-  db_id: string;
-  segment_id: string;
-  segment_sequence: number;
-  segment_hash: string;
-  last_row_hash: string;
-}
 
 export type CrossSegmentFailureRule =
   | 'GENESIS'
@@ -90,14 +78,12 @@ export function deriveSegmentHead(manifest: SegmentManifest): SegmentHead {
  *   - genesis (segment_sequence 0): no prior manifest; previous_segment must be null.
  *   - non-genesis: prior manifest present; same db_id; sequence == prior+1;
  *     previous_segment links to the prior (id/sequence) and its segment_hash equals
- *     the recomputed prior segment_hash (which binds the prior manifest_hash +
- *     last_row_hash + the prior's own previous_segment_hash); and the object chain
- *     is unbroken across the boundary (current first object's prev_row_hash equals
- *     the prior segment's last_row_hash).
+ *     the recomputed prior segment_hash; and the object chain is unbroken across
+ *     the boundary (current first object's prev_row_hash equals the prior segment's
+ *     last_row_hash).
  *
  * @param current the current segment's manifest.
- * @param currentFirstPrevRowHash the current segment's first object's prev_row_hash
- *        (supplied from SealReadySegment.objects[0].evidence.prev_row_hash by the caller).
+ * @param currentFirstPrevRowHash the current segment's first object's prev_row_hash.
  * @param previous the prior segment's manifest, or null for genesis.
  */
 export function verifyCrossSegment(
@@ -111,8 +97,6 @@ export function verifyCrossSegment(
   if (genesis) {
     if (previous !== null) failures.push({ rule: 'GENESIS', detail: 'genesis segment must have no previous manifest' });
     if (current.previous_segment !== null) failures.push({ rule: 'GENESIS', detail: 'genesis manifest.previous_segment must be null' });
-    // The object-chain genesis (first object's prev_row_hash) is intra-segment (T112);
-    // there is no prior segment to link, so the boundary row check does not apply.
     return { ok: failures.length === 0, genesis: true, failures };
   }
 

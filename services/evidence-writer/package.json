@@ -17,6 +17,7 @@
     "@edam/canonical": "*",
     "@edam/contracts": "*",
     "@edam/cce-model": "*",
+    "@edam/evidence": "*",
     "@edam/dlq": "*",
     "@edam/worm": "*"
   }

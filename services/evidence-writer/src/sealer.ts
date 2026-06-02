@@ -16,10 +16,16 @@
 import { serializeCanonical, rowHash, GENESIS_ROW_HASH } from '@edam/canonical';
 import type { Cce } from '@edam/cce-model';
 import type { PutOptions, WormWriter } from '@edam/worm';
+import {
+  verifySegmentChain,
+  buildSegmentManifest,
+  SegmentManifestError,
+  deriveSegmentHead,
+  verifyCrossSegment,
+  type SegmentManifest,
+  type SegmentHead,
+} from '@edam/evidence';
 import type { SealReadySegment } from './accumulator.js';
-import { verifySegmentChain } from './chain.js';
-import { buildSegmentManifest, SegmentManifestError, type SegmentManifest } from './manifest.js';
-import { deriveSegmentHead, verifyCrossSegment, type SegmentHead } from './cross-segment.js';
 import type { EvidenceWriter } from './writer.js';
 
 export interface SealAlarm {

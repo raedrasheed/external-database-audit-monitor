@@ -1,6 +1,7 @@
 // Intra-segment row-hash chain verification tests (Sprint-2 / EDAM-T112).
 import { describe, it, expect } from 'vitest';
-import { SegmentAccumulator, verifySegmentChain, type SealReadySegment } from '../src/index.js';
+import { SegmentAccumulator, type SealReadySegment } from '../src/index.js';
+import { verifySegmentChain } from '@edam/evidence';
 import { buildCce, type Cce, type NormalizedTransaction } from '@edam/cce-model';
 import { rowHash } from '@edam/canonical';
 

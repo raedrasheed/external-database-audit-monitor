@@ -1,6 +1,7 @@
 // Evidence segment manifest builder tests (Sprint-2 / EDAM-T111).
 import { describe, it, expect } from 'vitest';
-import { SegmentAccumulator, buildSegmentManifest, SegmentManifestError, type SealReadySegment, type PreviousSegmentRef } from '../src/index.js';
+import { SegmentAccumulator, type SealReadySegment } from '../src/index.js';
+import { buildSegmentManifest, SegmentManifestError, type PreviousSegmentRef } from '@edam/evidence';
 import { validateEvidenceSegmentManifest } from '@edam/contracts';
 import { buildCce, type Cce, type NormalizedTransaction } from '@edam/cce-model';
 

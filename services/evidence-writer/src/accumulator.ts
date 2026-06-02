@@ -17,7 +17,10 @@
 
 import { isHashToken } from '@edam/canonical';
 import { orderCces, type Cce } from '@edam/cce-model';
+import type { SegmentObjectRef, SegmentObjectHash } from '@edam/evidence';
 import { evidenceObjectKey } from './writer.js';
+
+export type { SegmentObjectRef, SegmentObjectHash } from '@edam/evidence';
 
 export interface SegmentCaps {
   /** Seal after this many objects (>=1). */
@@ -33,19 +36,6 @@ export interface AccumulatorDeps {
 }
 
 export type SealTrigger = 'event_count_cap' | 'time_cap' | 'flush';
-
-export interface SegmentObjectRef {
-  seq: number;
-  object_id: string;
-  worm_object_key: string;
-  object_type: 'cce';
-}
-
-export interface SegmentObjectHash {
-  seq: number;
-  event_hash: string;
-  row_hash: string;
-}
 
 /**
  * A segment whose state is finalized and is READY FOR SEALING (E2B). It mirrors

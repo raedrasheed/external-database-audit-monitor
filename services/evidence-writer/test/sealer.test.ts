@@ -5,16 +5,18 @@ import {
   EvidenceWriter,
   SegmentSealer,
   manifestObjectKey,
+  type SealReadySegment,
+  type SealAlarm,
+  type PreviousSealed,
+} from '../src/index.js';
+import {
   segmentHashOf,
   computeSegmentHash,
   GENESIS_PREVIOUS_SEGMENT_HASH,
   verifySegmentChain,
   verifyCrossSegment,
-  type SealReadySegment,
   type SegmentHead,
-  type SealAlarm,
-  type PreviousSealed,
-} from '../src/index.js';
+} from '@edam/evidence';
 import { InMemoryWormStore, type WormStore } from '@edam/worm';
 import { DlqService, InMemoryDlqStore, InMemoryDlqAlarmSink } from '@edam/dlq';
 import { buildCce, type NormalizedTransaction } from '@edam/cce-model';

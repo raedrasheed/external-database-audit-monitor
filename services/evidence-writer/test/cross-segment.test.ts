@@ -1,16 +1,15 @@
 // Cross-segment chain verification tests (Sprint-2 / EDAM-T113).
 import { describe, it, expect } from 'vitest';
+import { SegmentAccumulator, type SealReadySegment } from '../src/index.js';
 import {
-  SegmentAccumulator,
   buildSegmentManifest,
   computeSegmentHash,
   segmentHashOf,
   deriveSegmentHead,
   verifyCrossSegment,
   GENESIS_PREVIOUS_SEGMENT_HASH,
-  type SealReadySegment,
   type SegmentManifest,
-} from '../src/index.js';
+} from '@edam/evidence';
 import { buildCce, type Cce, type NormalizedTransaction } from '@edam/cce-model';
 import { GENESIS_ROW_HASH } from '@edam/canonical';
 

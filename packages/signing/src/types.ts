@@ -6,6 +6,13 @@
 // in-process / in-HSM and never surface it. The algorithm enum matches the
 // vendored anchor-record-1.0 hsm_signature.algorithm enum (WORM §16.2).
 
+import type { AnchorPayload } from '@edam/evidence';
+
+// ChainHead + AnchorPayload moved to @edam/evidence (EDAM-T110: the determinism
+// keystone shared with the independent verifier). Re-exported here so the
+// @edam/signing public API is unchanged for existing consumers.
+export type { ChainHead, AnchorPayload } from '@edam/evidence';
+
 export type SignAlgorithm = 'ecdsa-p384' | 'ed25519' | 'rsa-pss-3072' | 'ecdsa-p256';
 
 /** The result of signing: algorithm + key id + the signature (base64). No private material. */
@@ -24,30 +31,6 @@ export interface PublicKey {
   public_key: string;
   /** Set when the key is revoked; anchors signed before this remain valid. */
   revoked_at?: string | null;
-}
-
-/**
- * The cryptographic tip of a sealed segment (WORM §7.5), structurally compatible
- * with the evidence-writer's SegmentHead. Defined locally so @edam/signing
- * depends only on @edam/canonical (isolation).
- */
-export interface ChainHead {
-  db_id: string;
-  segment_id: string;
-  segment_sequence: number;
-  segment_hash: string;
-  last_row_hash: string;
-}
-
-/** The anchor payload the signer signs (WORM §8): a hash structure, never plaintext. */
-export interface AnchorPayload {
-  db_id: string;
-  segment_id: string;
-  segment_sequence: number;
-  segment_hash: string;
-  last_row_hash: string;
-  head_count: number;
-  signed_at: string;
 }
 
 /**

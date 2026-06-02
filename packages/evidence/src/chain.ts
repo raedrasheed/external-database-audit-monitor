@@ -1,26 +1,22 @@
-// Intra-segment row-hash chain verification (Sprint-2 / EDAM-T112).
+// Intra-segment row-hash chain verification (Sprint-2 / EDAM-T110; logic from T112).
 //
-// Pure, fail-closed re-verification of a SealReadySegment's object chain BEFORE
-// sealing. For each object (in the accumulator's global order) it confirms:
+// Pure, fail-closed re-verification of a segment's object chain. For each object
+// (in global order) it confirms:
 //   - event_hash recomputes over the canonical core (verifyCce);
 //   - row_hash == SHA256(prev_row_hash ?? GENESIS ‖ event_hash) (verifyCce);
 //   - object_hash_list[i] equals objects[i].evidence.{event_hash,row_hash};
 //   - object_list[i]/object_hash_list[i] are seq-ordered and aligned with objects[i];
 //   - prev_row_hash linkage: objects[i].evidence.prev_row_hash == objects[i-1].row_hash.
 // The FIRST object's prev_row_hash links to the PRIOR SEGMENT's last_row_hash —
-// that cross-segment continuity is NOT checked here; it is T113's job. This
+// that cross-segment continuity is checked by cross-segment.ts, not here. This
 // module computes NO segment_hash, performs NO cross-segment linkage, writes
-// NOTHING to WORM, and raises NO alarm / lifecycle transition (that is the seal
-// step, T114). It only DETECTS, returning every broken link; the caller maps a
-// failure to VERIFICATION_FAILED + a CRITICAL alarm.
+// NOTHING, and raises NO alarm / lifecycle transition. It only DETECTS, returning
+// every broken link. Shared by the writer (pre-seal) and the verifier (re-prove).
 //
-// NOTE: this VERIFIES an established chain; it does not ESTABLISH it. Segments
-// whose objects were built independently (each prev_row_hash = GENESIS) are a
-// genuinely broken chain and fail closed here — threading prev_row_hash in global
-// order is a build/seal concern, out of T112 scope.
+// NOTE: this VERIFIES an established chain; it does not ESTABLISH it.
 
 import { verifyCce, type Cce } from '@edam/cce-model';
-import type { SealReadySegment } from './accumulator.js';
+import type { SegmentChainInput } from './types.js';
 
 export type ChainFailureRule = 'EMPTY' | 'ORDER' | 'HASH_LIST' | 'EVENT_HASH' | 'ROW_HASH' | 'PREV_LINK';
 
@@ -52,7 +48,7 @@ export interface ChainVerification {
  * Re-verify a segment's intra-segment object chain. Fail-closed: `ok` is true
  * only when every object passes every check and the segment is non-empty.
  */
-export function verifySegmentChain(seg: SealReadySegment): ChainVerification {
+export function verifySegmentChain(seg: SegmentChainInput): ChainVerification {
   const failures: ChainFailure[] = [];
   const checks: ObjectChainCheck[] = [];
   const objects = seg.objects;
@@ -109,7 +105,7 @@ export function verifySegmentChain(seg: SealReadySegment): ChainVerification {
       }
     }
 
-    // --- prev_row_hash linkage (intra-segment; i === 0 is prior-segment scope, T113) ---
+    // --- prev_row_hash linkage (intra-segment; i === 0 is prior-segment scope) ---
     let prev_link_ok = true;
     if (i > 0) {
       if (obj.evidence.prev_row_hash !== prevRowHash) {

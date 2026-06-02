@@ -19,37 +19,11 @@ export {
   type SegmentObjectHash,
   type AddResult,
 } from './accumulator.js';
-// Evidence segment manifest builder (Sprint-2 / EDAM-T111). Builds the §6
-// manifest core + manifest_hash + validation; no segment_hash / linkage / seal.
-export {
-  buildSegmentManifest,
-  SegmentManifestError,
-  type SegmentManifest,
-  type PreviousSegmentRef,
-  type BuildSegmentManifestOptions,
-} from './manifest.js';
-// Intra-segment row-hash chain verification (Sprint-2 / EDAM-T112). Fail-closed
-// re-verify; no segment_hash / cross-segment linkage / seal / WORM write.
-export {
-  verifySegmentChain,
-  type ChainVerification,
-  type ChainFailure,
-  type ChainFailureRule,
-  type ObjectChainCheck,
-} from './chain.js';
-// Segment hash + genesis + cross-segment linkage (Sprint-2 / EDAM-T113).
-// Pure, fail-closed; no manifest/seal/WORM/lifecycle/signing/anchoring.
-export {
-  GENESIS_PREVIOUS_SEGMENT_HASH,
-  computeSegmentHash,
-  segmentHashOf,
-  deriveSegmentHead,
-  verifyCrossSegment,
-  type SegmentHead,
-  type CrossSegmentVerification,
-  type CrossSegmentFailure,
-  type CrossSegmentFailureRule,
-} from './cross-segment.js';
+// The pure manifest assembly (T111), row-chain verification (T112), and
+// segment_hash / cross-segment continuity (T113) — plus their types — moved to
+// @edam/evidence (EDAM-T110: determinism keystone shared with the independent
+// verifier). The writer imports them directly from @edam/evidence; consumers that
+// need those pure functions/types should import them from @edam/evidence.
 // Seal transition + chain-head emit (Sprint-2 / EDAM-T114). Establishes the
 // chain, verifies (T112/T113), writes objects + manifest immutably, emits the
 // head to the signing stage. No signing / no anchoring / no ANCHORED state.
