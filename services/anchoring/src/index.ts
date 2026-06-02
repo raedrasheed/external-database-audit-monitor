@@ -36,3 +36,11 @@ export {
   type TstInfo,
   type Rfc3161VerifyResult,
 } from './rfc3161.js';
+export {
+  DevTransparencyLogProvider,
+  verifyTransparencyLogToken,
+  type DevTransparencyLogProviderOptions,
+  type DevLogCertificate,
+  type SignedTreeHead,
+  type TransparencyLogVerifyResult,
+} from './transparency-log.js';
