@@ -40,6 +40,33 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     expect(await store.versioningEnabled()).toBe(true);
   });
 
+  it('Object Lock is asserted Enabled (W-1/H3)', async () => {
+    expect(await store.objectLockEnabled()).toBe(true);
+  });
+
+  it('refuses to operate on a non-lock bucket — fail-fast (H3)', async () => {
+    // A bucket created WITHOUT Object Lock (lock cannot be enabled post-creation).
+    const nonLockBucket = `edam-worm-nolock-${Date.now().toString(36)}`;
+    const raw = new (await import('minio')).Client({
+      endPoint: ENDPOINT!,
+      port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
+      useSSL: process.env.WORM_MINIO_SSL === 'true',
+      accessKey: process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin',
+      secretKey: process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin',
+    });
+    await raw.makeBucket(nonLockBucket, 'us-east-1'); // no ObjectLocking
+    const nonLockStore = createMinioWormStore({
+      endPoint: ENDPOINT!,
+      port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
+      useSSL: process.env.WORM_MINIO_SSL === 'true',
+      accessKey: process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin',
+      secretKey: process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin',
+      bucket: nonLockBucket,
+    });
+    await expect(nonLockStore.ensureBucket()).rejects.toBeInstanceOf(WormError);
+    expect(await nonLockStore.objectLockEnabled()).toBe(false);
+  });
+
   it('writes and reads an object back', async () => {
     await store.writer().putImmutable('seg/0.json', enc('{"x":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
     expect(dec(await store.reader().get('seg/0.json'))).toBe('{"x":1}');

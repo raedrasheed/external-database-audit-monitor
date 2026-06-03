@@ -66,13 +66,54 @@ export class MinioWormStore implements WormStore {
     this.region = cfg.region ?? 'us-east-1';
   }
 
-  /** Create the bucket with Object Lock enabled + versioning (idempotent). */
+  /**
+   * Create the bucket with Object Lock enabled + versioning, then ASSERT the lock
+   * config is actually Enabled (EDAM-T104-H3). Object Lock can only be enabled at
+   * bucket creation, so the adapter REFUSES to operate on a pre-existing non-lock
+   * bucket (fail-fast) — lock is asserted against the store, never trusted.
+   * Idempotent.
+   */
   async ensureBucket(): Promise<void> {
     const exists = await this.client.bucketExists(this.bucket);
     if (!exists) {
       await this.client.makeBucket(this.bucket, this.region, { ObjectLocking: true });
     }
     await this.client.setBucketVersioning(this.bucket, { Status: 'Enabled' });
+    await this.assertObjectLockEnabled();
+  }
+
+  /**
+   * Assert (against the store) that the bucket has S3 Object Lock Enabled (H3).
+   * A non-lock bucket — or one whose lock config cannot be read — is a hard
+   * refusal: lock cannot be enabled after creation, so operating would mean
+   * silently-mutable evidence. Throws `WormError` on anything but `Enabled`.
+   */
+  private async assertObjectLockEnabled(): Promise<void> {
+    let enabled: string | undefined;
+    try {
+      // The minio d.ts overloads getObjectLockConfig as void|Promise; normalize at runtime.
+      const cfg = (await (this.client.getObjectLockConfig(this.bucket) as unknown as Promise<{ objectLockEnabled?: string }>));
+      enabled = cfg?.objectLockEnabled;
+    } catch (err) {
+      throw new WormError(
+        `bucket "${this.bucket}" Object-Lock config is unreadable; refusing to operate on a non-lock bucket (W-1/H3): ${(err as Error).message}`,
+      );
+    }
+    if (enabled !== 'Enabled') {
+      throw new WormError(
+        `bucket "${this.bucket}" does not have Object Lock Enabled (got ${JSON.stringify(enabled)}); Object Lock can only be set at bucket creation — refusing to operate (W-1/H3)`,
+      );
+    }
+  }
+
+  /** Whether the bucket has S3 Object Lock Enabled (H3) — asserted, not trusted. Used by integration checks. */
+  async objectLockEnabled(): Promise<boolean> {
+    try {
+      const cfg = (await (this.client.getObjectLockConfig(this.bucket) as unknown as Promise<{ objectLockEnabled?: string }>));
+      return cfg?.objectLockEnabled === 'Enabled';
+    } catch {
+      return false;
+    }
   }
 
   /** Whether bucket versioning is enabled (W-4) — used by integration checks. */
