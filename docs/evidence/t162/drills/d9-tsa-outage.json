@@ -1,0 +1,7 @@
+{
+  "via": "in-process anchoring",
+  "status": "pending",
+  "reason": "provider_outage",
+  "token_present": false,
+  "builder_refused": true
+}

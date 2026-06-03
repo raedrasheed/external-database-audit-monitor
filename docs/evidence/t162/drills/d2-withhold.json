@@ -1,0 +1,4 @@
+{
+  "exit_code": 2,
+  "stderr": "error: cannot read sidecar object for key kafel-dev-mysql/seg-mpyjwdxx-000000/000000.cce.json at /tmp/t162-drills/d2/kafel-dev-mysql/seg-mpyjwdxx-000000/000000.cce.json: ENOENT: no such file or directory, open '/tmp/t162-drills/d2/kafel-dev-mysql/seg-mpyjwdxx-000000/000000.cce.json'"
+}

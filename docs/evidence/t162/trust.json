@@ -1,0 +1,24 @@
+{
+  "signing_keys": [
+    {
+      "key_id": "edam-dev-ed25519-24c1761895fa0e56",
+      "algorithm": "ed25519",
+      "public_key": "MCowBQYDK2VwAyEABbbUJ6cBcT5k9aaZbp+aT7dw48lXbJHk0I2FYp/Qyt4=",
+      "revoked_at": null
+    }
+  ],
+  "anchor_certs": [
+    {
+      "ref": "dev-tsa-ed25519-79394aa427dc14c5",
+      "algorithm": "ed25519",
+      "public_key": "MCowBQYDK2VwAyEA8vnVDn3ETkRFJOKAlqdqiFEsFM2LPfQ7FCJ8oovgD3w="
+    }
+  ],
+  "export_keys": [
+    {
+      "key_id": "edam-dev-export-84f7c9234817d96e",
+      "algorithm": "ed25519",
+      "public_key": "MCowBQYDK2VwAyEA6ozCkpwj7rLmx3cTwFaLOEHokLHW1wzsChlUZcQaeD8="
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "via": "live MinIO/WORM",
+  "key": "kafel-dev-mysql/legal-hold-mpyjwdxx/000000.cce.json",
+  "denied": true,
+  "message": "object at \"kafel-dev-mysql/legal-hold-mpyjwdxx/000000.cce.json\" is under legal hold; deletion denied (W-3)"
+}

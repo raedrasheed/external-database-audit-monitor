@@ -1,0 +1,67 @@
+{
+  "package_id": "11111111-2222-4333-8444-555555555555",
+  "db_id": "kafel-dev-mysql",
+  "export_signature": {
+    "result": "PASS",
+    "offending_ids": [],
+    "details": "export signature verifies (key edam-dev-export-84f7c9234817d96e)"
+  },
+  "report": {
+    "report_version": "verification-report-1.0",
+    "report_id": "b70ce81a-6c2c-433f-bd4f-4636c2c7398f",
+    "db_id": "kafel-dev-mysql",
+    "verifier": {
+      "type": "independent_external"
+    },
+    "scope": {
+      "first_segment_sequence": 0,
+      "last_segment_sequence": 1
+    },
+    "generated_at": "2026-06-03T21:00:47.386Z",
+    "overall_result": "FAIL",
+    "checks": [
+      {
+        "check": "per_object_hash",
+        "result": "PASS"
+      },
+      {
+        "check": "object_chain",
+        "result": "PASS"
+      },
+      {
+        "check": "segment_manifest",
+        "result": "PASS"
+      },
+      {
+        "check": "cross_segment_continuity",
+        "result": "PASS"
+      },
+      {
+        "check": "no_missing_segment",
+        "result": "PASS"
+      },
+      {
+        "check": "no_missing_event",
+        "result": "PASS"
+      },
+      {
+        "check": "hsm_signature",
+        "result": "PASS"
+      },
+      {
+        "check": "anchor_token",
+        "result": "FAIL",
+        "details": "seg-mpyjwdxxd5-000000: rfc3161 algorithm_mismatch | seg-mpyjwdxxd5-000001: rfc3161 gen_time=2026-06-03T21:00:46.580Z",
+        "offending_ids": [
+          "seg-mpyjwdxxd5-000000/seg-mpyjwdxxd5-000000"
+        ]
+      },
+      {
+        "check": "projection_consistency",
+        "result": "SKIPPED",
+        "details": "not yet implemented in this verifier stage"
+      }
+    ],
+    "report_signature": null
+  }
+}

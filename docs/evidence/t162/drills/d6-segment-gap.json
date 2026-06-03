@@ -1,0 +1,70 @@
+{
+  "package_id": "11111111-2222-4333-8444-555555555555",
+  "db_id": "kafel-dev-mysql",
+  "export_signature": {
+    "result": "FAIL",
+    "offending_ids": [
+      "11111111-2222-4333-8444-555555555555"
+    ],
+    "details": "export package_hash does not recompute (carried sha256:953954456353eb3e520e1b3cb8174c453f15cb9bdc6aeeac04c19260a0c6aea2 !== recomputed sha256:03d2f53d7f9fe90afcddc1ea0b4c28413dab472072d0ed8e8064ffd158553d4c)"
+  },
+  "report": {
+    "report_version": "verification-report-1.0",
+    "report_id": "62ba3d89-679c-41b7-a62e-4445c2b5793c",
+    "db_id": "kafel-dev-mysql",
+    "verifier": {
+      "type": "independent_external"
+    },
+    "scope": {
+      "first_segment_sequence": 1,
+      "last_segment_sequence": 1
+    },
+    "generated_at": "2026-06-03T21:00:48.422Z",
+    "overall_result": "FAIL",
+    "checks": [
+      {
+        "check": "per_object_hash",
+        "result": "PASS"
+      },
+      {
+        "check": "object_chain",
+        "result": "PASS"
+      },
+      {
+        "check": "segment_manifest",
+        "result": "PASS"
+      },
+      {
+        "check": "cross_segment_continuity",
+        "result": "FAIL",
+        "details": "seg-mpyjwdxx-000001: MISSING_PREVIOUS non-genesis segment (sequence 1) requires a previous manifest",
+        "offending_ids": [
+          "seg-mpyjwdxx-000001"
+        ]
+      },
+      {
+        "check": "no_missing_segment",
+        "result": "PASS"
+      },
+      {
+        "check": "no_missing_event",
+        "result": "PASS"
+      },
+      {
+        "check": "hsm_signature",
+        "result": "PASS"
+      },
+      {
+        "check": "anchor_token",
+        "result": "PASS",
+        "details": "seg-mpyjwdxx-000001: rfc3161 gen_time=2026-06-03T21:00:42.394Z"
+      },
+      {
+        "check": "projection_consistency",
+        "result": "SKIPPED",
+        "details": "not yet implemented in this verifier stage"
+      }
+    ],
+    "report_signature": null
+  }
+}
