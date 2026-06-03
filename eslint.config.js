@@ -7,7 +7,9 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', '**/*.d.ts'],
+    // deploy/** holds dev-container infra (compose .mjs stubs / shell / SQL) — not
+    // part of the TS codebase; validated structurally by compose-validate, not eslint.
+    ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', '**/*.d.ts', 'deploy/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

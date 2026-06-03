@@ -155,6 +155,71 @@ services:
       timeout: 5s
       retries: 20
 
+  # -------------------------------------------------------------------------
+  # WORM bucket bootstrap (Sprint-2 / EDAM-T160) - one-shot minio/mc.
+  # Pre-creates the evidence bucket with Object Lock + versioning so the live
+  # harness (T161) has a ready WORM target. The writer's ensureBucket() remains
+  # the final idempotent guard. Exits 0 after bootstrap (run-once).
+  # -------------------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: edam-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-edam-evidence}
+    entrypoint: ["/bin/sh", "/init/init-bucket.sh"]
+    volumes:
+      - ./minio/init-bucket.sh:/init/init-bucket.sh:ro
+    restart: "no"
+
+  # -------------------------------------------------------------------------
+  # Dev signer (Sprint-2 / EDAM-T160) - DEV TOPOLOGY/HEALTH STAND-IN ONLY.
+  # Represents the production HSM signing service (S-4). NOT the real signing
+  # path: T161 signs anchor payloads IN-PROCESS via @edam/signing (no drift).
+  # Zero-dependency Node stub; plain HTTP (production uses mTLS + a real HSM).
+  # -------------------------------------------------------------------------
+  dev-signer:
+    image: node:20-alpine
+    container_name: edam-dev-signer
+    command: ["node", "/srv/server.mjs"]
+    environment:
+      DEV_SIGNER_PORT: ${DEV_SIGNER_PORT:-8090}
+    ports:
+      - "${DEV_SIGNER_PORT:-8090}:8090"
+    volumes:
+      - ./dev-signer/server.mjs:/srv/server.mjs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8090/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # -------------------------------------------------------------------------
+  # Dev TSA / transparency log (Sprint-2 / EDAM-T160) - DEV STAND-IN ONLY.
+  # Represents the external RFC-3161 TSA + RFC-6962 transparency log (S-4). NOT
+  # the real anchoring path: T161 anchors IN-PROCESS via @edam/anchoring (no
+  # drift). Zero-dependency Node stub; plain HTTP (production uses mTLS).
+  # -------------------------------------------------------------------------
+  dev-tsa-log:
+    image: node:20-alpine
+    container_name: edam-dev-tsa-log
+    command: ["node", "/srv/server.mjs"]
+    environment:
+      DEV_TSA_LOG_PORT: ${DEV_TSA_LOG_PORT:-8091}
+    ports:
+      - "${DEV_TSA_LOG_PORT:-8091}:8091"
+    volumes:
+      - ./dev-tsa-log/server.mjs:/srv/server.mjs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8091/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   mysql-data:
   mariadb-data:

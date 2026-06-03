@@ -1,6 +1,9 @@
 # EDAM Local Development Stack
 
-Local Docker Compose environment for EDAM Sprint 1 (Epic E7 / EDAM-T048).
+Local Docker Compose environment for EDAM. Sprint 1 (Epic E7 / EDAM-T048) provides
+the CDC + state services; Sprint 2 (Epic E2F / EDAM-T104, EDAM-T160) adds the WORM
+evidence store and the live-stack (M-Live) topology used by the live evidence
+harness (T161) and the offline verifier drills (T162).
 
 ## Services
 
@@ -12,10 +15,24 @@ Local Docker Compose environment for EDAM Sprint 1 (Epic E7 / EDAM-T048).
 | `debezium` | Debezium Server (MySQL → Redis; no Kafka) | 8083 |
 | `postgres` | EDAM collector state DB (`edam_state`) | 5432 |
 | `vault` | Dev secret store (read-only CDC credential reference) | 8200 |
+| `minio` | WORM evidence store — MinIO with S3 Object Lock + versioning (T104) | 9000 (console 9001) |
+| `minio-init` | One-shot: pre-creates the Object-Lock evidence bucket + versioning + default compliance retention (T160) | — (run-once) |
+| `dev-signer` | **Dev stand-in** for the HSM signing service (S-4) — health/topology only (T160) | 8090 |
+| `dev-tsa-log` | **Dev stand-in** for the RFC-3161 TSA + RFC-6962 transparency log (S-4) — health/topology only (T160) | 8091 |
 
 All credentials are throwaway **dev defaults** (see `.env.example`). The CDC
 user is provisioned **read-only** — INV-1: EDAM never writes to the monitored
 database.
+
+> **Dev stand-ins (not the real crypto path).** `dev-signer` and `dev-tsa-log`
+> are minimal zero-dependency Node HTTP stubs that exist so the M-Live stack has
+> reachable, healthy "signer" and "anchor authority" endpoints. They are **not**
+> on the real signing/anchoring path: the live evidence harness (T161) performs
+> the **actual** anchor-payload signing and anchoring **in-process** via
+> `@edam/signing` and `@edam/anchoring` (canonical bytes from `@edam/evidence` /
+> `@edam/anchor-proof`, so there is no builder↔verifier drift). They are plain
+> HTTP; production uses mTLS + a real HSM/TSA (spec §15 S-4). Validate the stack's
+> structural completeness with `npm run compose-validate`.
 
 ## Usage
 

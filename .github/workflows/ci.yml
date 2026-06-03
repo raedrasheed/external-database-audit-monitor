@@ -246,5 +246,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-audit --no-fund
       - name: Validate docker compose config
         run: docker compose -f deploy/compose/docker-compose.yml config >/dev/null
+      - name: Assert M-Live stack completeness (services + healthchecks + minio-init + dev stand-ins)
+        run: npm run compose-validate -- --check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compose-validate-proof
+          path: compose-validate-proof.json

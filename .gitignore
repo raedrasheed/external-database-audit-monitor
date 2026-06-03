@@ -20,3 +20,4 @@ evidence-schemas-verbatim-proof.json
 worm-no-mutate-proof.json
 verifier-isolation-proof.json
 evidence-conformance-report.json
+compose-validate-proof.json
