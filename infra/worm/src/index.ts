@@ -15,4 +15,4 @@ export {
   type WormStore,
 } from './types.js';
 export { InMemoryWormStore } from './memory.js';
-export { MinioWormStore, createMinioWormStore, type MinioWormConfig } from './minio.js';
+export { MinioWormStore, createMinioWormStore, type MinioWormConfig, type MinioRoleCredential } from './minio.js';

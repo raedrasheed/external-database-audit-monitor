@@ -13,6 +13,33 @@ import { createMinioWormStore, WormError, type MinioWormStore } from '../src/ind
 const ENDPOINT = process.env.WORM_MINIO_ENDPOINT;
 const run = ENDPOINT ? describe : describe.skip;
 
+// --- H1 per-role credential config (UNIT — no MinIO required; the minio Client
+//     constructor is lazy/does not connect). ---
+describe('MinioWormStore per-role credential config (H1, unit)', () => {
+  const base = { endPoint: '127.0.0.1', port: 9000, useSSL: false, bucket: 'edam-x' };
+  const cred = (k: string) => ({ accessKey: k, secretKey: `${k}-secret` });
+
+  it('single-credential mode is dev-only: role separation NOT enforced', () => {
+    const s = createMinioWormStore({ ...base, accessKey: 'minioadmin', secretKey: 'minioadmin' });
+    expect(s.roleSeparationEnforced).toBe(false);
+  });
+
+  it('per-role credentials enforce role separation', () => {
+    const s = createMinioWormStore({ ...base, credentials: { writer: cred('w'), reader: cred('r'), retentionAdmin: cred('a') } });
+    expect(s.roleSeparationEnforced).toBe(true);
+  });
+
+  it('fail-closed: a missing role credential is rejected', () => {
+    expect(() =>
+      createMinioWormStore({ ...base, credentials: { writer: cred('w'), reader: cred('r'), retentionAdmin: { accessKey: '', secretKey: '' } } }),
+    ).toThrow(WormError);
+  });
+
+  it('fail-closed: neither per-role credentials nor accessKey/secretKey is rejected', () => {
+    expect(() => createMinioWormStore({ ...base })).toThrow(WormError);
+  });
+});
+
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 const dec = (b: Uint8Array): string => new TextDecoder().decode(b);
 /** A retain-until far in the future, so the object is locked for the whole test. */
@@ -113,5 +140,28 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     expect(store.writer()).not.toBe(store.reader());
     expect('get' in store.writer()).toBe(false);
     expect('putImmutable' in store.reader()).toBe(false);
+  });
+
+  it('per-role credential mode routes each role through its own client (H1)', async () => {
+    // Per-role mode against the live bucket. Distinct creds (3 MinIO users) are
+    // provisioned out-of-band for the SoD/H5 proofs; here we prove the 3-client
+    // architecture functions end-to-end (writer writes, reader reads, retention-
+    // admin extends retention) — each via its own physical client.
+    const c = (k?: string, s?: string) => ({ accessKey: k ?? 'minioadmin', secretKey: s ?? 'minioadmin' });
+    const roleStore = createMinioWormStore({
+      endPoint: ENDPOINT!,
+      port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
+      useSSL: process.env.WORM_MINIO_SSL === 'true',
+      bucket,
+      credentials: {
+        writer: c(process.env.WORM_MINIO_WRITER_KEY, process.env.WORM_MINIO_WRITER_SECRET),
+        reader: c(process.env.WORM_MINIO_READER_KEY, process.env.WORM_MINIO_READER_SECRET),
+        retentionAdmin: c(process.env.WORM_MINIO_ADMIN_KEY, process.env.WORM_MINIO_ADMIN_SECRET),
+      },
+    });
+    expect(roleStore.roleSeparationEnforced).toBe(true);
+    await roleStore.writer().putImmutable('role/0.json', enc('{"role":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
+    expect(dec(await roleStore.reader().get('role/0.json'))).toBe('{"role":1}');
+    await roleStore.retentionAdmin().extendRetention('role/0.json', LATER); // retention-admin op via its own client
   });
 });
