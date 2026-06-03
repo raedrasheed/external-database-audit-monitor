@@ -272,6 +272,9 @@ export class MinioWormStore implements WormStore {
   }
 
   private async deleteExpired(client: Client, key: WormObjectKey, now: string): Promise<void> {
+    // Defense-in-depth pre-checks (fast, clear errors). They are NOT the authority:
+    // the STORE — S3 Object Lock in COMPLIANCE mode — is the final authority (the
+    // version-scoped delete below is rejected by MinIO while the version is locked).
     const lock = await this.headObjectLock(client, key);
     if (lock.legalHold) {
       throw new WormError(`object at "${key}" is under legal hold; deletion denied (W-3)`);
@@ -279,8 +282,15 @@ export class MinioWormStore implements WormStore {
     if (lock.retainUntil !== null && ms(now) < ms(lock.retainUntil)) {
       throw new WormError(`object at "${key}" is within its retention window; deletion denied (W-7)`);
     }
-    // MinIO Object Lock is the final authority; this only succeeds if truly unlocked.
-    await client.removeObject(this.bucket, key);
+    // VERSION-SCOPED delete (H2): target the explicit object VERSION, never the bare
+    // key. A bare-key delete in a versioned bucket creates a DELETE MARKER that hides
+    // the object from the read path WITHOUT removing the locked version — a hide path.
+    // Targeting the versionId keeps the STORE authoritative: COMPLIANCE rejects (403)
+    // a version-scoped delete of a still-locked version, so this can only succeed on a
+    // genuinely-expired/unlocked version (lawful expiry) — and it removes that version
+    // outright, leaving no delete marker.
+    const versionId = await this.latestVersionId(client, key);
+    await client.removeObject(this.bucket, key, { versionId });
   }
 
   // --- role-scoped identities (W-8) — each backed by its own physical client (H1) ---

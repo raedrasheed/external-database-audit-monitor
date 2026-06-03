@@ -49,17 +49,16 @@ const EARLIER = new Date(Date.now() + 1000 * 60 * 60).toISOString();
 
 run('MinIO Object-Lock WORM adapter (live)', () => {
   let store: MinioWormStore;
+  let rawClient: import('minio').Client;
   const bucket = `edam-worm-it-${Date.now().toString(36)}`;
 
   beforeAll(async () => {
-    store = createMinioWormStore({
-      endPoint: ENDPOINT!,
-      port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
-      useSSL: process.env.WORM_MINIO_SSL === 'true',
-      accessKey: process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin',
-      secretKey: process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin',
-      bucket,
-    });
+    const port = process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000;
+    const useSSL = process.env.WORM_MINIO_SSL === 'true';
+    const accessKey = process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin';
+    const secretKey = process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin';
+    store = createMinioWormStore({ endPoint: ENDPOINT!, port, useSSL, accessKey, secretKey, bucket });
+    rawClient = new (await import('minio')).Client({ endPoint: ENDPOINT!, port, useSSL, accessKey, secretKey });
     await store.ensureBucket();
   }, 60_000);
 
@@ -140,6 +139,47 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     expect(store.writer()).not.toBe(store.reader());
     expect('get' in store.writer()).toBe(false);
     expect('putImmutable' in store.reader()).toBe(false);
+  });
+
+  it('deleteExpired is VERSION-SCOPED and leaves no delete marker (H2)', async () => {
+    // A retained object whose COMPLIANCE retention EXPIRES shortly (lawful expiry).
+    const shortRetain = new Date(Date.now() + 2_000).toISOString();
+    await store.writer().putImmutable('h2/expiring.json', enc('{"u":1}'), { retentionMode: 'compliance', retainUntil: shortRetain });
+    await new Promise((r) => setTimeout(r, 3_000)); // let the retention window pass
+
+    // Capture the actual removeObject call args to prove a versionId is passed.
+    const calls: Array<{ key: string; opts: unknown }> = [];
+    const raw = (store as unknown as { retentionAdminClient: { removeObject: (b: string, k: string, o?: unknown) => Promise<void> } }).retentionAdminClient;
+    const orig = raw.removeObject.bind(raw);
+    raw.removeObject = async (b: string, k: string, o?: unknown) => { calls.push({ key: k, opts: o }); return orig(b, k, o); };
+    try {
+      await store.retentionAdmin().deleteExpired('h2/expiring.json', new Date().toISOString());
+    } finally {
+      raw.removeObject = orig;
+    }
+    // (A) delete targeted an explicit versionId, not the bare key alone.
+    expect(calls).toHaveLength(1);
+    expect((calls[0]!.opts as { versionId?: string })?.versionId).toBeTruthy();
+    // (B) no hide marker: the object is genuinely gone (not hidden by a delete marker).
+    await expect(store.reader().get('h2/expiring.json')).rejects.toBeInstanceOf(WormError);
+    expect(await store.reader().list('h2/expiring.json')).toEqual([]);
+  }, 15_000);
+
+  it('deleteExpired denies a still-retained object; object remains visible (H2 compat W-7)', async () => {
+    await store.writer().putImmutable('h2/locked.json', enc('{"l":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
+    await expect(store.retentionAdmin().deleteExpired('h2/locked.json', new Date().toISOString())).rejects.toBeInstanceOf(WormError);
+    expect(dec(await store.reader().get('h2/locked.json'))).toBe('{"l":1}'); // still visible, not hidden
+  });
+
+  it('store is authoritative: a raw version-scoped delete of a locked version is rejected (H2)', async () => {
+    // Bypass the adapter pre-check entirely: hit the raw client with a version-scoped
+    // delete on a still-locked version — MinIO COMPLIANCE must reject it (store, not app).
+    const stat = await rawClient.statObject(bucket, 'h2/locked.json');
+    let storeRejected = false;
+    try { await rawClient.removeObject(bucket, 'h2/locked.json', { versionId: stat.versionId! }); }
+    catch { storeRejected = true; }
+    expect(storeRejected).toBe(true);
+    expect(dec(await store.reader().get('h2/locked.json'))).toBe('{"l":1}'); // version intact + visible
   });
 
   it('per-role credential mode routes each role through its own client (H1)', async () => {
