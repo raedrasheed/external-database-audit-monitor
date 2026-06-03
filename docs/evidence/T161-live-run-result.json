@@ -1,0 +1,65 @@
+{
+  "artifact": "edam-t161-live-run-result",
+  "task": "EDAM-T161",
+  "generated_at": "2026-06-03T20:23:28.753Z",
+  "live": {
+    "component": "MinIO WORM (S3 Object Lock)",
+    "image": "quay.io/minio/minio:latest (retagged minio/minio:latest)",
+    "endpoint": "127.0.0.1:9000",
+    "bucket": "edam-evidence",
+    "object_lock": true,
+    "versioning_enabled": true,
+    "operations": [
+      "ensureBucket",
+      "putImmutable",
+      "get"
+    ]
+  },
+  "in_process": {
+    "signer": "@edam/signing DevEd25519Signer (dev, in-process — NOT an external live service)",
+    "anchor_provider": "@edam/anchoring DevRfc3161Provider + requestAnchor (dev, in-process — NOT an external live service)",
+    "anchor_record_builder": "@edam/anchoring buildAnchorRecord/buildAnchorRef (T133)"
+  },
+  "objects": 3,
+  "segments": 2,
+  "segment_ids": [
+    "seg-mpyikifx-000000",
+    "seg-mpyikifx-000001"
+  ],
+  "cce_phases": {
+    "snapshot": 0,
+    "streaming": 3
+  },
+  "no_fabricated_tokens": true,
+  "sample_worm_object_key": "kafel-dev-mysql/seg-mpyikifx-000000/000000.cce.json",
+  "sample_segment_id": "seg-mpyikifx-000000",
+  "sample_anchor_ref": {
+    "head_hash": "sha256:5491c4d6e9f4753328eed1604c64551ec383b4d3e4bdbfd8b94924aeaf3caf17",
+    "hsm_signature": "PMxUEQT27XLRGX1zqAjCMlQjRPSo0ZFbwKu9rbjrts+L+/wXVVCFB/SAokDTvG9Yhpn6m697oQHkOCapGoydDg==",
+    "tsa_token": "eyJ0c3RfaW5mbyI6eyJ2ZXJzaW9uIjoxLCJwb2xpY3kiOiJlZGFtLmRldi50c2EucG9saWN5LjEiLCJtZXNzYWdlX2ltcHJpbnQiOnsiaGFzaF9hbGdvcml0aG0iOiJzaGEtMjU2IiwiaGFzaGVkX21lc3NhZ2UiOiJzaGEyNTY6NTQ5MWM0ZDZlOWY0NzUzMzI4ZWVkMTYwNGM2NDU1MWVjMzgzYjRkM2U0YmRiZmQ4Yjk0OTI0YWVhZjNjYWYxNyJ9LCJzZXJpYWxfbnVtYmVyIjoiODc3MDA1YTA4NjA5ZGFmNiIsImdlbl90aW1lIjoiMjAyNi0wNi0wM1QyMDoyMzoyOC43MTdaIiwidHNhX2NlcnRfcmVmIjoiZGV2LXRzYS1lZDI1NTE5LWZjZTczYjM0MDFjYTNlMWMifSwic2lnbmF0dXJlIjoiYzkzTkw2djdMV2p1cUdxOVdSc0NUSE01Mk9xcmx6Q2tMTXBoL2xmbWJwU1lOc3BRcXRkN1VtQ2lFblVlM2c3bjdJVWZkRFZPellJSUtLSk9GUXo1QVE9PSIsInNpZ25hdHVyZV9hbGdvcml0aG0iOiJlZDI1NTE5In0=",
+    "anchor_provider": "rfc3161"
+  },
+  "read_back_from_live_minio": {
+    "count": 3,
+    "all_back_refs_populated": true,
+    "sample": {
+      "key": "kafel-dev-mysql/seg-mpyikifx-000000/000000.cce.json",
+      "worm_object_key": "kafel-dev-mysql/seg-mpyikifx-000000/000000.cce.json",
+      "segment_id": "seg-mpyikifx-000000",
+      "bytes": 1558
+    }
+  },
+  "live_worm_immutability_overwrite_rejected": true,
+  "wv1_deterministic_manifest_hash": true,
+  "wv11_genesis_and_continuity": true,
+  "acceptance": {
+    "objects_anchored_end_to_end": true,
+    "worm_object_key_populated_live": true,
+    "segment_id_populated_live": true,
+    "anchor_ref_populated": true,
+    "two_or_more_segments": true
+  },
+  "caveats": [
+    "All CCEs built as streaming-phase cce-1.1: a fully-valid snapshot-phase CCE requires the snapshot-epoch assembly path (normalization/collector), which was scoped out for T161 (Q2: prove the evidence path, not the CDC pipeline). The WORM/seal/sign/anchor evidence path proven here is snapshot/streaming-phase-agnostic."
+  ]
+}
