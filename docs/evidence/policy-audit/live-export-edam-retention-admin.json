@@ -1,0 +1,48 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:GetObjectRetention",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:GetObject",
+        "s3:GetObjectLegalHold"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::edam-evidence/*"
+      ],
+      "Sid": "RetentionAndLegalHoldManagement"
+    },
+    {
+      "Action": [
+        "s3:ListBucket",
+        "s3:PutBucketObjectLockConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:GetBucketObjectLockConfiguration",
+        "s3:GetBucketVersioning"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::edam-evidence"
+      ],
+      "Sid": "BucketBootstrapAndLockConfig"
+    },
+    {
+      "Action": [
+        "s3:BypassGovernanceRetention",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:PutBucketPolicy",
+        "s3:PutObject"
+      ],
+      "Effect": "Deny",
+      "Resource": [
+        "arn:aws:s3:::edam-evidence",
+        "arn:aws:s3:::edam-evidence/*"
+      ],
+      "Sid": "DenyContentWriteAndDelete"
+    }
+  ],
+  "Version": "2012-10-17"
+}

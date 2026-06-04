@@ -1,0 +1,57 @@
+{
+  "ok": true,
+  "violations": [],
+  "matrix": {
+    "writer": {
+      "s3:PutObject": "Allow",
+      "s3:GetObject": "Allow",
+      "s3:DeleteObject": "Deny",
+      "s3:DeleteObjectVersion": "Deny",
+      "s3:PutObjectRetention": "Deny",
+      "s3:GetObjectRetention": "ImplicitDeny",
+      "s3:PutObjectLegalHold": "Deny",
+      "s3:GetObjectLegalHold": "ImplicitDeny",
+      "s3:BypassGovernanceRetention": "Deny",
+      "s3:ListBucket": "ImplicitDeny",
+      "s3:GetBucketVersioning": "ImplicitDeny",
+      "s3:PutBucketVersioning": "Deny",
+      "s3:GetBucketObjectLockConfiguration": "ImplicitDeny",
+      "s3:PutBucketObjectLockConfiguration": "Deny",
+      "s3:PutBucketPolicy": "Deny"
+    },
+    "reader": {
+      "s3:PutObject": "Deny",
+      "s3:GetObject": "Allow",
+      "s3:DeleteObject": "Deny",
+      "s3:DeleteObjectVersion": "Deny",
+      "s3:PutObjectRetention": "Deny",
+      "s3:GetObjectRetention": "Allow",
+      "s3:PutObjectLegalHold": "Deny",
+      "s3:GetObjectLegalHold": "Allow",
+      "s3:BypassGovernanceRetention": "Deny",
+      "s3:ListBucket": "Allow",
+      "s3:GetBucketVersioning": "Allow",
+      "s3:PutBucketVersioning": "Deny",
+      "s3:GetBucketObjectLockConfiguration": "Allow",
+      "s3:PutBucketObjectLockConfiguration": "Deny",
+      "s3:PutBucketPolicy": "Deny"
+    },
+    "retention-admin": {
+      "s3:PutObject": "Deny",
+      "s3:GetObject": "Allow",
+      "s3:DeleteObject": "Deny",
+      "s3:DeleteObjectVersion": "Deny",
+      "s3:PutObjectRetention": "Allow",
+      "s3:GetObjectRetention": "Allow",
+      "s3:PutObjectLegalHold": "Allow",
+      "s3:GetObjectLegalHold": "Allow",
+      "s3:BypassGovernanceRetention": "Deny",
+      "s3:ListBucket": "Allow",
+      "s3:GetBucketVersioning": "Allow",
+      "s3:PutBucketVersioning": "Allow",
+      "s3:GetBucketObjectLockConfiguration": "Allow",
+      "s3:PutBucketObjectLockConfiguration": "Allow",
+      "s3:PutBucketPolicy": "Deny"
+    }
+  }
+}
