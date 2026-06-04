@@ -1,0 +1,306 @@
+{
+  "generated_at": "2026-06-04T07:08:15.454Z",
+  "bucket": "edam-evidence",
+  "total": 33,
+  "passed": 33,
+  "failed": 0,
+  "rows": [
+    {
+      "role": "reader",
+      "action": "s3:DeleteObject",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:DeleteObjectVersion",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:GetObject",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:GetObjectLegalHold",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:GetObjectRetention",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:ListBucket",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:PutBucketObjectLockConfiguration",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:PutBucketPolicy",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:PutBucketVersioning",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:PutObject",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:PutObjectLegalHold",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "reader",
+      "action": "s3:PutObjectRetention",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:BypassGovernanceRetention",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:DeleteObject",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:DeleteObjectVersion",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:PutBucketObjectLockConfiguration(edam-evidence)",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:PutBucketVersioning(edam-evidence)",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:PutObject",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:PutObjectLegalHold(OFF)",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:PutObjectLegalHold(ON)",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "s3:PutObjectRetention",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "unrelated:GetObject",
+      "basis": "resource-scope",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "retention-admin",
+      "action": "unrelated:PutObject",
+      "basis": "resource-scope",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "root",
+      "action": "s3:BypassGovernanceRetention",
+      "basis": "store-worm",
+      "expected": "deny",
+      "actual": "reject-worm",
+      "store": "InvalidRequest",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:BypassGovernanceRetention",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:DeleteObject",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:DeleteObjectVersion",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:PutBucketObjectLockConfiguration",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:PutBucketPolicy",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:PutBucketVersioning",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:PutObject",
+      "basis": "iam-policy",
+      "expected": "allow",
+      "actual": "allow",
+      "store": "200/OK",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:PutObjectLegalHold",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    },
+    {
+      "role": "writer",
+      "action": "s3:PutObjectRetention",
+      "basis": "iam-policy",
+      "expected": "deny",
+      "actual": "deny-access",
+      "store": "AccessDenied",
+      "pass": true
+    }
+  ]
+}
