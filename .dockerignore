@@ -1,0 +1,15 @@
+# Build-context excludes for the EDAM service image (R-11). The runtime image copies
+# only the prebuilt bundle (dist/cdc-collector/index.cjs), so keep the context lean.
+node_modules
+**/node_modules
+.git
+.github
+coverage
+**/*.tsbuildinfo
+docs
+deploy/pilot/debezium-conf
+*.log
+.env
+.env.*
+**/.env
+**/.env.*

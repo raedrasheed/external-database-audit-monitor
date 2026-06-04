@@ -15,11 +15,21 @@ evidence store, against an **EXTERNAL Kafel MySQL**. Read
 - It does **NOT** bundle the monitored DB (Kafel is external, read-only — INV-1) and does
   **NOT** run dev-signer/dev-tsa stubs (the evidence path anchors in-process).
 
-## What runs as a PROCESS (not yet containerized — R-11)
-- The **EDAM collector / evidence-writer** (`services/cdc-collector`): `npm start`
-  (`tsx src/index.ts`) with the pilot env — read-only Kafel credential ref, Postgres state
-  URL, Redis bus, and the WORM (MinIO) endpoint + the **writer** SoD credential. Sealing /
-  signing (dev) / anchoring (dev RFC-3161) run in this process.
+## Containerized (R-11a) and pending (R-11b)
+- **Collector — CONTAINERIZED (R-11a).** Built as a self-contained esbuild bundle into a
+  slim image (no in-image `npm ci`). The image **enforces INV-1** (rejects a non-read-only
+  CDC credential). Build + run:
+  ```bash
+  npm run build:collector            # esbuild -> dist/cdc-collector/index.cjs (run on host/CI)
+  docker compose --env-file deploy/pilot/.env.pilot -f deploy/pilot/docker-compose.pilot.yml build collector
+  docker compose --env-file deploy/pilot/.env.pilot -f deploy/pilot/docker-compose.pilot.yml up -d
+  ```
+- **Evidence-writer — NOT YET A SERVICE (R-11b).** `@edam/evidence-writer` is a library
+  (no runnable entrypoint). Containerizing it requires authoring a **service composition
+  root** (bus consumer → accumulator → sealer → dev signer → dev RFC-3161 anchoring → WORM
+  writer + DLQ). Until R-11b lands, the collector publishes to the bus but **no evidence is
+  written to WORM**. The proven wiring exists (S3-REVAL harness) and will be made a permanent
+  service with an in-memory smoke test + pilot integration.
 
 ## Setup
 1. `cp deploy/pilot/.env.pilot.example deploy/pilot/.env.pilot` and replace **all

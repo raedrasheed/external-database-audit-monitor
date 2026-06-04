@@ -16,6 +16,7 @@
     "conformance"
   ],
   "scripts": {
+    "build:collector": "esbuild services/cdc-collector/src/index.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/cdc-collector/index.cjs --external:pg-native",
     "compose:up": "docker compose -f deploy/compose/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/compose/docker-compose.yml down -v",
     "compose:config": "docker compose -f deploy/compose/docker-compose.yml config",

@@ -111,10 +111,42 @@ services:
       - ../compose/minio/policies:/policies:ro
     restart: "no"
 
-  # NOTE: the EDAM collector / evidence-writer run as PROCESSES for the pilot
-  # (services not yet containerized — R-11). See deploy/pilot/README.md for the run
-  # procedure (read-only Kafel credential ref, PG/bus/WORM endpoints, in-process dev
-  # signer + dev RFC-3161 — DEV-anchored, R-01).
+  # CDC collector (R-11 containerized) — consumes the Debezium source stream, builds
+  # CCEs, publishes to the bus, and persists offsets/DLQ to Postgres. INV-1: uses a
+  # READ-ONLY Kafel credential (CDC_ACCESS=read-only is asserted; never writes the source).
+  collector:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: edam/edam-service:pilot
+    container_name: edam-pilot-collector
+    restart: unless-stopped
+    networks: [edam-pilot]
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      CDC_ENGINE: ${CDC_ENGINE:-mysql}
+      CDC_DB_ID: ${CDC_DB_ID:-kafel}
+      REDIS_URL: redis://redis:6379
+      CDC_SOURCE_STREAMS: ${CDC_SOURCE_STREAMS:-kafel}
+      CDC_BUS_STREAM: ${CDC_BUS_STREAM:-edam:captured}
+      EDAM_STATE_PG_URL: postgres://${PG_USER:-edam}:${PG_PASSWORD:?set PG_PASSWORD in .env.pilot}@postgres:5432/${PG_DB:-edam_state}
+      CDC_CREDENTIAL_REF: ${CDC_CREDENTIAL_REF:-edam/cdc/mysql}
+      # INV-1: the READ-ONLY Kafel CDC credential (EnvSecretSource). access MUST be read-only.
+      CDC_USER: ${KAFEL_CDC_USER:?set KAFEL_CDC_USER in .env.pilot}
+      CDC_PASSWORD: ${KAFEL_CDC_PASSWORD:?set KAFEL_CDC_PASSWORD in .env.pilot}
+      CDC_ACCESS: read-only
+    command: ["npx", "tsx", "services/cdc-collector/src/index.ts"]
+
+  # NOTE: the EVIDENCE-WRITER is a LIBRARY (no runnable service entrypoint yet). Its
+  # containerization (R-11b) requires a service composition root (bus consumer ->
+  # accumulator -> sealer -> dev signer -> dev RFC-3161 anchoring -> WORM writer) — a
+  # separate executable task. Until then, no evidence is written to WORM. See
+  # docs/ops/EDAM-Operator-Runbook.md and the R-11b plan.
 
 volumes:
   redis-data:
