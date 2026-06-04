@@ -40,6 +40,24 @@ describe('MinioWormStore per-role credential config (H1, unit)', () => {
   });
 });
 
+// --- H4 mandatory/default retention config (UNIT — no MinIO; the fail-closed check
+//     in putImmutable runs BEFORE any network call). ---
+describe('MinioWormStore mandatory retention config (H4, unit)', () => {
+  const base = { endPoint: '127.0.0.1', port: 9000, useSSL: false, bucket: 'edam-x', accessKey: 'minioadmin', secretKey: 'minioadmin' };
+  const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
+
+  it('rejects a non-positive / non-integer defaultRetentionDays', () => {
+    expect(() => createMinioWormStore({ ...base, defaultRetentionDays: 0 })).toThrow(WormError);
+    expect(() => createMinioWormStore({ ...base, defaultRetentionDays: -1 })).toThrow(WormError);
+    expect(() => createMinioWormStore({ ...base, defaultRetentionDays: 1.5 })).toThrow(WormError);
+  });
+
+  it('fail-closed: write without retainUntil and without defaultRetentionDays is refused (before any network call)', async () => {
+    const store = createMinioWormStore({ ...base }); // no defaultRetentionDays
+    await expect(store.writer().putImmutable('k.json', enc('{}'), { retentionMode: 'compliance' })).rejects.toBeInstanceOf(WormError);
+  });
+});
+
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 const dec = (b: Uint8Array): string => new TextDecoder().decode(b);
 /** A retain-until far in the future, so the object is locked for the whole test. */
@@ -181,6 +199,42 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     expect(storeRejected).toBe(true);
     expect(dec(await store.reader().get('h2/locked.json'))).toBe('{"l":1}'); // version intact + visible
   });
+
+  it('mandatory/default retention: a write without retainUntil is born locked; no unlocked object (H4)', async () => {
+    // A SEPARATE store/bucket configured with a default retention floor.
+    const defBucket = `edam-worm-h4-${Date.now().toString(36)}`;
+    const defStore = createMinioWormStore({
+      endPoint: ENDPOINT!,
+      port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
+      useSSL: process.env.WORM_MINIO_SSL === 'true',
+      accessKey: process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin',
+      secretKey: process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin',
+      bucket: defBucket,
+      defaultRetentionDays: 1,
+    });
+    await defStore.ensureBucket();
+
+    // (default) write WITHOUT retainUntil -> object is born locked by the bucket default.
+    await defStore.writer().putImmutable('d/auto.json', enc('{"a":1}'), { retentionMode: 'compliance' });
+    const autoLock = await defStore.reader().headObjectLock('d/auto.json');
+    expect(autoLock.retainUntil).not.toBeNull(); // headObjectLock reads retention for written objects
+    // no unlocked object: raw getObjectRetention confirms COMPLIANCE retention exists at the store.
+    const rawRet = (await (rawClient.getObjectRetention(defBucket, 'd/auto.json') as unknown as Promise<{ mode?: string } | null>));
+    expect(rawRet?.mode).toBe('COMPLIANCE');
+
+    // (explicit) write WITH a longer retainUntil -> explicit retention is respected (extended).
+    await defStore.writer().putImmutable('d/explicit.json', enc('{"e":1}'), { retentionMode: 'compliance', retainUntil: LATER });
+    expect((await defStore.reader().headObjectLock('d/explicit.json')).retainUntil).not.toBeNull();
+
+    // (fail-closed) a store WITHOUT a default cannot write unretained.
+    const noDef = createMinioWormStore({
+      endPoint: ENDPOINT!, port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
+      useSSL: process.env.WORM_MINIO_SSL === 'true',
+      accessKey: process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin', secretKey: process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin',
+      bucket: defBucket,
+    });
+    await expect(noDef.writer().putImmutable('d/nope.json', enc('{}'), { retentionMode: 'compliance' })).rejects.toBeInstanceOf(WormError);
+  }, 30_000);
 
   it('per-role credential mode routes each role through its own client (H1)', async () => {
     // Per-role mode against the live bucket. Distinct creds (3 MinIO users) are

@@ -38,6 +38,13 @@ export interface MinioWormConfig {
   bucket: string;
   region?: string;
   /**
+   * Mandatory/default COMPLIANCE retention floor in DAYS (H4). When set, the bucket
+   * is configured with a default Object-Lock retention so EVERY written object is
+   * born locked server-side (no unretained object is producible). Writing without
+   * an explicit `retainUntil` AND without a configured default fails closed.
+   */
+  defaultRetentionDays?: number;
+  /**
    * DEVELOPMENT ONLY — a single credential reused for ALL roles. Role separation
    * is **NOT enforced** in this mode (the writer / reader / retention-admin
    * clients share one identity). Use `credentials` in production (H1/W-8).
@@ -83,6 +90,8 @@ export class MinioWormStore implements WormStore {
   readonly roleSeparationEnforced: boolean;
   private readonly bucket: string;
   private readonly region: string;
+  /** Default COMPLIANCE retention floor in days (H4); when set, the bucket is born with a default retention. */
+  private readonly defaultRetentionDays?: number;
 
   constructor(cfg: MinioWormConfig) {
     const base = { endPoint: cfg.endPoint, port: cfg.port, useSSL: cfg.useSSL ?? false } as const;
@@ -119,6 +128,10 @@ export class MinioWormStore implements WormStore {
       throw new WormError('MinioWormConfig requires either `credentials.{writer,reader,retentionAdmin}` or `accessKey`+`secretKey` (fail-closed, H1)');
     }
 
+    if (cfg.defaultRetentionDays !== undefined && (!Number.isInteger(cfg.defaultRetentionDays) || cfg.defaultRetentionDays <= 0)) {
+      throw new WormError(`MinioWormConfig.defaultRetentionDays must be a positive integer (got ${cfg.defaultRetentionDays}) (H4)`);
+    }
+    this.defaultRetentionDays = cfg.defaultRetentionDays;
     this.bucket = cfg.bucket;
     this.region = cfg.region ?? 'us-east-1';
   }
@@ -137,6 +150,20 @@ export class MinioWormStore implements WormStore {
     }
     await this.retentionAdminClient.setBucketVersioning(this.bucket, { Status: 'Enabled' });
     await this.assertObjectLockEnabled();
+    // H4: install a bucket DEFAULT COMPLIANCE retention so every put is born locked
+    // server-side (no unretained object is producible). Idempotent.
+    if (this.defaultRetentionDays !== undefined) {
+      await (this.retentionAdminClient.setObjectLockConfig(this.bucket, {
+        mode: RETENTION_MODES.COMPLIANCE,
+        unit: 'Days',
+        validity: this.defaultRetentionDays,
+      }) as unknown as Promise<void>);
+    }
+  }
+
+  /** The bucket-default retention floor (ms since epoch) at write time, or 0 if no default is configured (H4). */
+  private defaultFloorMs(): number {
+    return this.defaultRetentionDays !== undefined ? Date.now() + this.defaultRetentionDays * 86_400_000 : 0;
   }
 
   /** Assert (against the store) that Object Lock is Enabled (H3). Throws on anything but `Enabled`. */
@@ -193,19 +220,41 @@ export class MinioWormStore implements WormStore {
   }
 
   private async putImmutable(client: Client, key: WormObjectKey, bytes: WormBytes, opts: PutOptions): Promise<void> {
+    // H4 — MANDATORY retention: no object may be written unretained. Either an
+    // explicit `retainUntil` is supplied, or a bucket DEFAULT retention is
+    // configured (applied server-side at put). Neither ⇒ fail closed BEFORE the put.
+    if (!opts.retainUntil && this.defaultRetentionDays === undefined) {
+      throw new WormError(`refusing to write "${key}" without retention: no retainUntil and no defaultRetentionDays configured (fail-closed, H4)`);
+    }
     if (await this.exists(client, key)) {
       throw new WormError(`object already exists at "${key}"; WORM is append-only (no overwrite)`);
     }
     const buf = Buffer.from(bytes);
+    // When a bucket default is configured the server locks the object at put time;
+    // no separate call is needed for the default case (born locked, no window).
     const info = await client.putObject(this.bucket, key, buf, buf.length);
     const versionId = info.versionId ?? (await this.latestVersionId(client, key));
-    // Apply COMPLIANCE retention at write time (strengthening; never shortenable later).
     if (opts.retainUntil) {
-      await client.putObjectRetention(this.bucket, key, {
-        mode: RETENTION_MODES.COMPLIANCE,
-        retainUntilDate: opts.retainUntil,
-        versionId,
-      });
+      // Explicit retention EXTENDS beyond the default floor (COMPLIANCE never
+      // shortens). Skip when the default already covers the request (avoids a
+      // spurious shorten-rejection); otherwise apply it.
+      if (ms(opts.retainUntil) > this.defaultFloorMs()) {
+        try {
+          await client.putObjectRetention(this.bucket, key, {
+            mode: RETENTION_MODES.COMPLIANCE,
+            retainUntilDate: opts.retainUntil,
+            versionId,
+          });
+        } catch (err) {
+          // If there is NO default floor, a retention failure would leave the object
+          // unretained — roll back the version (fail-closed: no unlocked object persists).
+          if (this.defaultRetentionDays === undefined) {
+            try { await client.removeObject(this.bucket, key, { versionId }); } catch { /* best-effort cleanup */ }
+            throw new WormError(`failed to apply explicit retention to "${key}"; rolled back the unretained write (fail-closed, H4): ${(err as Error).message}`);
+          }
+          throw err; // a default floor already locks the object; surface the error
+        }
+      }
     }
     if (opts.legalHold) {
       await this.setLegalHold(client, key, true, versionId);
