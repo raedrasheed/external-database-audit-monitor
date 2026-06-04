@@ -19,6 +19,9 @@
     "@edam/cce-model": "*",
     "@edam/evidence": "*",
     "@edam/dlq": "*",
-    "@edam/worm": "*"
+    "@edam/worm": "*",
+    "@edam/signing": "*",
+    "@edam/anchoring": "*",
+    "ioredis": "^5.4.1"
   }
 }

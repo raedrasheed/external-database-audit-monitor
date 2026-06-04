@@ -118,7 +118,9 @@ services:
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: edam/edam-service:pilot
+      args:
+        SERVICE: cdc-collector
+    image: edam/cdc-collector:pilot
     container_name: edam-pilot-collector
     restart: unless-stopped
     networks: [edam-pilot]
@@ -140,13 +142,42 @@ services:
       CDC_USER: ${KAFEL_CDC_USER:?set KAFEL_CDC_USER in .env.pilot}
       CDC_PASSWORD: ${KAFEL_CDC_PASSWORD:?set KAFEL_CDC_PASSWORD in .env.pilot}
       CDC_ACCESS: read-only
-    command: ["npx", "tsx", "services/cdc-collector/src/index.ts"]
 
-  # NOTE: the EVIDENCE-WRITER is a LIBRARY (no runnable service entrypoint yet). Its
-  # containerization (R-11b) requires a service composition root (bus consumer ->
-  # accumulator -> sealer -> dev signer -> dev RFC-3161 anchoring -> WORM writer) — a
-  # separate executable task. Until then, no evidence is written to WORM. See
-  # docs/ops/EDAM-Operator-Runbook.md and the R-11b plan.
+  # Evidence-writer (R-11b containerized) — consumes CCEs from the bus, seals + signs +
+  # anchors (DEV providers, R-01) and writes born-locked evidence to WORM via the WRITER
+  # SoD identity. NOTE: the CCE stream (CDC_CCE_STREAM) is produced by the NORMALIZATION
+  # service (R-11c, CapturedRecord -> CCE) — until that lands there is no input and no
+  # evidence is written. Full end-to-end is validated in the Priority-2 Kafel pilot.
+  evidence-writer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        SERVICE: evidence-writer
+    image: edam/evidence-writer:pilot
+    container_name: edam-pilot-evidence-writer
+    restart: unless-stopped
+    networks: [edam-pilot]
+    depends_on:
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      CDC_DB_ID: ${CDC_DB_ID:-kafel}
+      REDIS_URL: redis://redis:6379
+      CDC_CCE_STREAM: ${CDC_CCE_STREAM:-edam:cce}
+      WORM_MINIO_ENDPOINT: minio
+      WORM_MINIO_PORT: "9000"
+      MINIO_BUCKET: ${MINIO_BUCKET:-edam-evidence}
+      WORM_DEFAULT_RETENTION_DAYS: ${WORM_DEFAULT_RETENTION_DAYS:-365}
+      WORM_WRITER_USER: ${WORM_WRITER_USER:-edam-writer}
+      WORM_WRITER_SECRET: ${WORM_WRITER_SECRET:?set WORM_WRITER_SECRET in .env.pilot}
+      WORM_READER_USER: ${WORM_READER_USER:-edam-reader}
+      WORM_READER_SECRET: ${WORM_READER_SECRET:?set WORM_READER_SECRET in .env.pilot}
+      WORM_RETENTION_ADMIN_USER: ${WORM_RETENTION_ADMIN_USER:-edam-retention-admin}
+      WORM_RETENTION_ADMIN_SECRET: ${WORM_RETENTION_ADMIN_SECRET:?set WORM_RETENTION_ADMIN_SECRET in .env.pilot}
 
 volumes:
   redis-data:
