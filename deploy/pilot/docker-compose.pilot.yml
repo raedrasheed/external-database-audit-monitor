@@ -1,0 +1,123 @@
+# EDAM PILOT runtime — minimal production-oriented infra for operational monitoring +
+# WORM evidence collection against an EXTERNAL Kafel MySQL.
+#
+# PILOT BOUNDARY (read deploy/pilot/README.md):
+#  - The monitored DB (Kafel) is EXTERNAL — NOT bundled here (INV-1: read-only CDC).
+#  - The evidence path signs/anchors IN-PROCESS via DEV providers ⇒ evidence is
+#    DEV-ANCHORED (R-01). No dev-signer/dev-tsa stubs are run (they are not the real path).
+#  - No mTLS / IP-allowlist / dual-control / DR (run on a PRIVATE/ISOLATED network).
+#  - Replace every CHANGE_ME value in .env.pilot before use.
+name: edam-pilot
+
+networks:
+  edam-pilot:
+    driver: bridge
+
+services:
+  # Internal event bus (Redis Streams).
+  redis:
+    image: redis:7-alpine
+    container_name: edam-pilot-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    networks: [edam-pilot]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # EDAM collector state store (offset / DLQ / config-snapshot DB).
+  postgres:
+    image: postgres:16-alpine
+    container_name: edam-pilot-postgres
+    restart: unless-stopped
+    networks: [edam-pilot]
+    environment:
+      POSTGRES_USER: ${PG_USER:-edam}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD in .env.pilot}
+      POSTGRES_DB: ${PG_DB:-edam_state}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-edam} -d ${PG_DB:-edam_state}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # CDC runtime — Debezium Server (EXTERNAL Kafel MySQL -> Redis sink).
+  # Operator supplies the connector config in ./debezium-conf (host/creds for Kafel,
+  # READ-ONLY user — INV-1). See README.
+  debezium:
+    image: debezium/server:2.7.3.Final
+    container_name: edam-pilot-debezium
+    restart: unless-stopped
+    networks: [edam-pilot]
+    depends_on:
+      redis:
+        condition: service_started
+    volumes:
+      - ./debezium-conf:/debezium/conf:ro
+      - debezium-data:/debezium/data
+    ports:
+      - "${DEBEZIUM_PORT:-8083}:8080"
+
+  # WORM evidence store — MinIO with S3 Object Lock + versioning.
+  minio:
+    image: minio/minio:latest
+    container_name: edam-pilot-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    restart: unless-stopped
+    networks: [edam-pilot]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env.pilot}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env.pilot}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # One-shot WORM bootstrap: Object-Lock bucket + versioning + default COMPLIANCE
+  # retention + the 3 least-privilege SoD identities. Reuses the committed init script
+  # and policies (deploy/compose/minio/*). Exits 0 after bootstrap.
+  minio-init:
+    image: minio/mc:latest
+    container_name: edam-pilot-minio-init
+    networks: [edam-pilot]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env.pilot}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env.pilot}
+      MINIO_BUCKET: ${MINIO_BUCKET:-edam-evidence}
+      WORM_WRITER_USER: ${WORM_WRITER_USER:-edam-writer}
+      WORM_WRITER_SECRET: ${WORM_WRITER_SECRET:?set WORM_WRITER_SECRET in .env.pilot}
+      WORM_READER_USER: ${WORM_READER_USER:-edam-reader}
+      WORM_READER_SECRET: ${WORM_READER_SECRET:?set WORM_READER_SECRET in .env.pilot}
+      WORM_RETENTION_ADMIN_USER: ${WORM_RETENTION_ADMIN_USER:-edam-retention-admin}
+      WORM_RETENTION_ADMIN_SECRET: ${WORM_RETENTION_ADMIN_SECRET:?set WORM_RETENTION_ADMIN_SECRET in .env.pilot}
+    entrypoint: ["/bin/sh", "/init/init-bucket.sh"]
+    volumes:
+      - ../compose/minio/init-bucket.sh:/init/init-bucket.sh:ro
+      - ../compose/minio/policies:/policies:ro
+    restart: "no"
+
+  # NOTE: the EDAM collector / evidence-writer run as PROCESSES for the pilot
+  # (services not yet containerized — R-11). See deploy/pilot/README.md for the run
+  # procedure (read-only Kafel credential ref, PG/bus/WORM endpoints, in-process dev
+  # signer + dev RFC-3161 — DEV-anchored, R-01).
+
+volumes:
+  redis-data:
+  postgres-data:
+  debezium-data:
+  minio-data:
