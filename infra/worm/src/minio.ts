@@ -3,7 +3,9 @@
 // Implements WormStore over MinIO / S3 Object Lock:
 //   - bucket created with Object Lock + versioning (W-1/W-2/W-4); the lock config
 //     is ASSERTED, not trusted, and a non-lock bucket is refused (T104-H3);
-//   - writes apply COMPLIANCE-mode retention (and optional legal hold, W-3);
+//   - the WRITER path performs ONLY putObject; retention comes from the bucket
+//     DEFAULT COMPLIANCE retention (born locked, H4). Retention extension + legal
+//     hold are Domain-C ops, never the writer (EDAM-S3-SOD-F1 / B2 / S-7);
 //   - PER-ROLE credentials (T104-H1/W-8): the writer / reader / retention-admin
 //     identities are backed by PHYSICALLY DISTINCT MinIO clients so role
 //     separation is enforced by credentials, not convention. A single-credential
@@ -16,7 +18,7 @@ import { Client, RETENTION_MODES, LEGAL_HOLD_STATUS, type BucketItem } from 'min
 import {
   WormError,
   type ObjectLock,
-  type PutOptions,
+  type WriterPutOptions,
   type WormBytes,
   type WormObjectKey,
   type WormReader,
@@ -161,11 +163,6 @@ export class MinioWormStore implements WormStore {
     }
   }
 
-  /** The bucket-default retention floor (ms since epoch) at write time, or 0 if no default is configured (H4). */
-  private defaultFloorMs(): number {
-    return this.defaultRetentionDays !== undefined ? Date.now() + this.defaultRetentionDays * 86_400_000 : 0;
-  }
-
   /** Assert (against the store) that Object Lock is Enabled (H3). Throws on anything but `Enabled`. */
   private async assertObjectLockEnabled(): Promise<void> {
     let enabled: string | undefined;
@@ -219,46 +216,27 @@ export class MinioWormStore implements WormStore {
     return stat.versionId;
   }
 
-  private async putImmutable(client: Client, key: WormObjectKey, bytes: WormBytes, opts: PutOptions): Promise<void> {
-    // H4 — MANDATORY retention: no object may be written unretained. Either an
-    // explicit `retainUntil` is supplied, or a bucket DEFAULT retention is
-    // configured (applied server-side at put). Neither ⇒ fail closed BEFORE the put.
-    if (!opts.retainUntil && this.defaultRetentionDays === undefined) {
-      throw new WormError(`refusing to write "${key}" without retention: no retainUntil and no defaultRetentionDays configured (fail-closed, H4)`);
+  private async putImmutable(client: Client, key: WormObjectKey, bytes: WormBytes, opts: WriterPutOptions): Promise<void> {
+    // EDAM-S3-SOD-F1 / B2 — the WRITER path performs ONLY a no-overwrite check and
+    // a `putObject`. It NEVER calls putObjectRetention / setObjectLegalHold /
+    // removeObject, so it needs no retention/hold/delete store permission and stays
+    // compatible with the least-privilege writer IAM policy (S-6/S-7).
+    //
+    // H4 — MANDATORY retention comes SOLELY from the bucket DEFAULT COMPLIANCE
+    // retention (applied server-side at put → born locked, no window). No default
+    // configured ⇒ fail closed BEFORE the put (no unretained object is producible).
+    // Retention EXTENSION and legal hold are Domain-C ops (`retentionAdmin()`).
+    void opts.retentionMode; // always 'compliance' (W-2); documents intent
+    if (this.defaultRetentionDays === undefined) {
+      throw new WormError(`refusing to write "${key}" without retention: no defaultRetentionDays configured; the writer relies solely on the bucket default COMPLIANCE retention (fail-closed, H4/B2)`);
     }
     if (await this.exists(client, key)) {
       throw new WormError(`object already exists at "${key}"; WORM is append-only (no overwrite)`);
     }
     const buf = Buffer.from(bytes);
-    // When a bucket default is configured the server locks the object at put time;
-    // no separate call is needed for the default case (born locked, no window).
-    const info = await client.putObject(this.bucket, key, buf, buf.length);
-    const versionId = info.versionId ?? (await this.latestVersionId(client, key));
-    if (opts.retainUntil) {
-      // Explicit retention EXTENDS beyond the default floor (COMPLIANCE never
-      // shortens). Skip when the default already covers the request (avoids a
-      // spurious shorten-rejection); otherwise apply it.
-      if (ms(opts.retainUntil) > this.defaultFloorMs()) {
-        try {
-          await client.putObjectRetention(this.bucket, key, {
-            mode: RETENTION_MODES.COMPLIANCE,
-            retainUntilDate: opts.retainUntil,
-            versionId,
-          });
-        } catch (err) {
-          // If there is NO default floor, a retention failure would leave the object
-          // unretained — roll back the version (fail-closed: no unlocked object persists).
-          if (this.defaultRetentionDays === undefined) {
-            try { await client.removeObject(this.bucket, key, { versionId }); } catch { /* best-effort cleanup */ }
-            throw new WormError(`failed to apply explicit retention to "${key}"; rolled back the unretained write (fail-closed, H4): ${(err as Error).message}`);
-          }
-          throw err; // a default floor already locks the object; surface the error
-        }
-      }
-    }
-    if (opts.legalHold) {
-      await this.setLegalHold(client, key, true, versionId);
-    }
+    // The bucket default locks the object at put time (born locked); the writer
+    // does nothing further. Longer retention / legal hold ⇒ retentionAdmin().
+    await client.putObject(this.bucket, key, buf, buf.length);
   }
 
   private async get(client: Client, key: WormObjectKey): Promise<WormBytes> {

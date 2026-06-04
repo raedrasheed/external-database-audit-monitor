@@ -13,6 +13,11 @@ function fresh(): WormStore {
   return new InMemoryWormStore();
 }
 
+/** A store whose bucket default born-locks every write at `retainUntil` (B2 model). */
+function withDefault(retainUntil: string): WormStore {
+  return new InMemoryWormStore({ defaultRetainUntil: retainUntil });
+}
+
 describe('WORM writer identity (Domain B, append-only)', () => {
   it('can write and the object is readable back', async () => {
     const store = fresh();
@@ -31,6 +36,19 @@ describe('WORM writer identity (Domain B, append-only)', () => {
     expect(writer.deleteExpired).toBeUndefined();
     // @ts-expect-error — writer has no extendRetention
     expect(writer.extendRetention).toBeUndefined();
+  });
+
+  it('writer options cannot express retainUntil or legalHold (B2; compile-time)', async () => {
+    const store = fresh();
+    // @ts-expect-error — retainUntil is not a writer option (B2)
+    await store.writer().putImmutable('a', enc('v'), { retentionMode: 'compliance', retainUntil: '2030-01-01T00:00:00.000Z' });
+    // @ts-expect-error — legalHold is not a writer option (B2)
+    await store.writer().putImmutable('b', enc('v'), { retentionMode: 'compliance', legalHold: true });
+    // Runtime: excess props are ignored; objects are born locked at the store default
+    // (here open-ended) and NEVER under a writer-set hold.
+    expect(dec(await store.reader().get('a'))).toBe('v');
+    expect((await store.reader().headObjectLock('a')).legalHold).toBe(false);
+    expect((await store.reader().headObjectLock('b')).legalHold).toBe(false);
   });
 
   it('rejects overwrite of an existing key (no mutation; append-only)', async () => {
@@ -64,9 +82,10 @@ describe('WORM reader identity', () => {
     await expect(store.reader().headObjectLock('nope')).rejects.toBeInstanceOf(WormError);
   });
 
-  it('headObjectLock reflects compliance mode, retain-until, and legal hold', async () => {
-    const store = fresh();
-    await store.writer().putImmutable('k', enc('v'), { retentionMode: 'compliance', retainUntil: '2030-01-01T00:00:00.000Z', legalHold: true });
+  it('headObjectLock reflects compliance mode, retain-until (store default), and legal hold (Domain C)', async () => {
+    const store = withDefault('2030-01-01T00:00:00.000Z');
+    await store.writer().putImmutable('k', enc('v'), COMPLIANCE); // born locked at the store default
+    await store.retentionAdmin().placeLegalHold('k'); // hold is a Domain-C op (B2)
     const lock = await store.reader().headObjectLock('k');
     expect(lock).toEqual({ retentionMode: 'compliance', retainUntil: '2030-01-01T00:00:00.000Z', legalHold: true });
   });
@@ -74,8 +93,8 @@ describe('WORM reader identity', () => {
 
 describe('WORM retention admin (Domain C, separate identity) — WV-8 semantics', () => {
   it('retention can be extended but never shortened (compliance mode)', async () => {
-    const store = fresh();
-    await store.writer().putImmutable('k', enc('v'), { retentionMode: 'compliance', retainUntil: '2030-01-01T00:00:00.000Z' });
+    const store = withDefault('2030-01-01T00:00:00.000Z');
+    await store.writer().putImmutable('k', enc('v'), COMPLIANCE);
     const admin = store.retentionAdmin();
     await admin.extendRetention('k', '2031-01-01T00:00:00.000Z'); // ok (forward)
     expect((await store.reader().headObjectLock('k')).retainUntil).toBe('2031-01-01T00:00:00.000Z');
@@ -89,14 +108,15 @@ describe('WORM retention admin (Domain C, separate identity) — WV-8 semantics'
   });
 
   it('deletion is denied under legal hold (W-3)', async () => {
-    const store = fresh();
-    await store.writer().putImmutable('k', enc('v'), { retentionMode: 'compliance', retainUntil: '2020-01-01T00:00:00.000Z', legalHold: true });
+    const store = withDefault('2020-01-01T00:00:00.000Z'); // already past, so only the hold gates deletion
+    await store.writer().putImmutable('k', enc('v'), COMPLIANCE);
+    await store.retentionAdmin().placeLegalHold('k');
     await expect(store.retentionAdmin().deleteExpired('k', '2026-06-01T00:00:00.000Z')).rejects.toBeInstanceOf(WormError);
   });
 
   it('deletion is denied within the retention window (W-7)', async () => {
-    const store = fresh();
-    await store.writer().putImmutable('k', enc('v'), { retentionMode: 'compliance', retainUntil: '2030-01-01T00:00:00.000Z' });
+    const store = withDefault('2030-01-01T00:00:00.000Z');
+    await store.writer().putImmutable('k', enc('v'), COMPLIANCE);
     await expect(store.retentionAdmin().deleteExpired('k', '2026-06-01T00:00:00.000Z')).rejects.toBeInstanceOf(WormError);
   });
 
@@ -107,16 +127,16 @@ describe('WORM retention admin (Domain C, separate identity) — WV-8 semantics'
   });
 
   it('lawful deletion succeeds only after expiry with no hold', async () => {
-    const store = fresh();
-    await store.writer().putImmutable('k', enc('v'), { retentionMode: 'compliance', retainUntil: '2026-01-01T00:00:00.000Z' });
+    const store = withDefault('2026-01-01T00:00:00.000Z');
+    await store.writer().putImmutable('k', enc('v'), COMPLIANCE);
     await store.retentionAdmin().deleteExpired('k', '2026-06-01T00:00:00.000Z'); // expired, no hold -> ok
     await expect(store.reader().get('k')).rejects.toBeInstanceOf(WormError);
   });
 
   it('placing/lifting a legal hold gates deletion', async () => {
-    const store = fresh();
+    const store = withDefault('2026-01-01T00:00:00.000Z');
     const admin = store.retentionAdmin();
-    await store.writer().putImmutable('k', enc('v'), { retentionMode: 'compliance', retainUntil: '2026-01-01T00:00:00.000Z' });
+    await store.writer().putImmutable('k', enc('v'), COMPLIANCE);
     await admin.placeLegalHold('k');
     await expect(admin.deleteExpired('k', '2026-06-01T00:00:00.000Z')).rejects.toBeInstanceOf(WormError);
     await admin.liftLegalHold('k');

@@ -29,7 +29,7 @@ import { serializeCanonical, isHashToken } from '@edam/canonical';
 import { validateCceFull, validateSnapshotEpochManifest } from '@edam/contracts';
 import { verifyCce, type Cce } from '@edam/cce-model';
 import type { DlqService, FailureCategory } from '@edam/dlq';
-import type { PutOptions, WormWriter } from '@edam/worm';
+import type { WriterPutOptions, WormWriter } from '@edam/worm';
 import type { AppendableObject, AppendOutcome, EvidenceObjectType, EvidencePlacement } from './types.js';
 
 export interface EvidenceWriterDeps {
@@ -37,13 +37,9 @@ export interface EvidenceWriterDeps {
   worm: WormWriter;
   /** Failure sink; record() persists-then-alarms (no loss). */
   dlq: DlqService;
-  /**
-   * Compliance retain-until for written objects (RFC3339). Optional here;
-   * mandatory/default retention is tracked as hardening EDAM-T104-H4.
-   */
-  retainUntil?: string;
-  /** Apply a legal hold at write time. */
-  legalHold?: boolean;
+  // NOTE: the writer does NOT accept retainUntil/legalHold (EDAM-S3-SOD-F1 / B2).
+  // Retention is the store's bucket-default COMPLIANCE retention (born locked, H4);
+  // retention extension + legal hold are Domain-C ops (WormRetentionAdmin / S-7).
   /** Clock for DLQ capture timestamps (DI for determinism). */
   now?: () => string;
 }
@@ -110,24 +106,18 @@ type Prepared =
 export class EvidenceWriter {
   private readonly worm: WormWriter;
   private readonly dlq: DlqService;
-  private readonly retainUntil?: string;
-  private readonly legalHold: boolean;
   private readonly now: () => string;
 
   constructor(deps: EvidenceWriterDeps) {
     this.worm = deps.worm;
     this.dlq = deps.dlq;
-    this.retainUntil = deps.retainUntil;
-    this.legalHold = deps.legalHold ?? false;
     this.now = deps.now ?? (() => new Date().toISOString());
   }
 
-  private putOptions(): PutOptions {
-    return {
-      retentionMode: 'compliance',
-      ...(this.retainUntil ? { retainUntil: this.retainUntil } : {}),
-      ...(this.legalHold ? { legalHold: true } : {}),
-    };
+  // B2: writer puts carry ONLY the compliance mode; retention is the store default
+  // (born locked, H4); legal hold / extension are Domain-C ops (S-7).
+  private putOptions(): WriterPutOptions {
+    return { retentionMode: 'compliance' };
   }
 
   /** Record a failure to the DLQ (persist-then-alarm). Rejects only if DLQ persistence fails (F-L1). */

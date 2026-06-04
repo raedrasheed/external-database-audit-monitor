@@ -47,7 +47,6 @@ describe('EvidenceWriter.append (T106)', () => {
     writer = new EvidenceWriter({
       worm: store.writer(),
       dlq: new DlqService({ store: dlqStore, alarms }),
-      retainUntil: '2031-01-01T00:00:00.000Z',
       now: () => FIXED_NOW,
     });
   });

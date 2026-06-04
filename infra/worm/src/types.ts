@@ -22,13 +22,18 @@ export type WormBytes = Uint8Array;
  */
 export type RetentionMode = 'compliance';
 
-export interface PutOptions {
+/**
+ * Writer-scoped put options (Domain B). DELIBERATELY carries ONLY `retentionMode`:
+ * the writer cannot express `retainUntil` or `legalHold` (EDAM-S3-SOD-F1 / Option
+ * B2). Retention is sourced SOLELY from the store's default COMPLIANCE retention
+ * (born locked); retention EXTENSION and legal hold are Domain-C operations on
+ * `WormRetentionAdmin`. This makes "writer sets retention/hold" unrepresentable —
+ * separation of duties (S-7) is enforced at the type level, not by convention, and
+ * the writer identity needs no retention/legal-hold store permission (S-6).
+ */
+export interface WriterPutOptions {
   /** Always 'compliance' (W-2). Typed as the literal so governance is unrepresentable. */
   readonly retentionMode: RetentionMode;
-  /** RFC3339 instant until which the object may not be deleted; omit for open-ended (permanent). */
-  readonly retainUntil?: string;
-  /** Apply a legal hold at write time (W-3). */
-  readonly legalHold?: boolean;
 }
 
 export interface ObjectLock {
@@ -47,12 +52,14 @@ export class WormError extends Error {
 }
 
 /**
- * Domain B — append-only writer. Deliberately exposes ONLY `putImmutable`:
- * there is no delete/overwrite/retention/legal-hold method on this type.
+ * Domain B — append-only writer. Deliberately exposes ONLY `putImmutable`: there
+ * is no delete/overwrite/retention/legal-hold method on this type, AND its options
+ * (`WriterPutOptions`) cannot express `retainUntil`/`legalHold` (B2). The writer
+ * relies solely on the store's default COMPLIANCE retention (born locked).
  */
 export interface WormWriter {
   /** Write an object once. MUST reject if the key already exists (no overwrite). */
-  putImmutable(key: WormObjectKey, bytes: WormBytes, opts: PutOptions): Promise<void>;
+  putImmutable(key: WormObjectKey, bytes: WormBytes, opts: WriterPutOptions): Promise<void>;
 }
 
 /** Read-only / exporter identity (chain-of-custody gated in production). */

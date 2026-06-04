@@ -72,11 +72,14 @@ export interface ExportSigner {
   signExport(packageHash: string): { algorithm: string; signing_key_id: string; signature: string };
 }
 
-/** A WORM compliance-mode write option set (locally typed; structurally compatible with the WORM writer). */
+/**
+ * A WORM compliance-mode write option set (locally typed; structurally compatible
+ * with the WORM writer). Carries ONLY `retentionMode` (EDAM-S3-SOD-F1 / B2): the
+ * writer cannot set retainUntil/legalHold — retention is the store's bucket-default
+ * COMPLIANCE retention; extension/hold are Domain-C ops.
+ */
 export interface WormPutOptions {
   retentionMode: 'compliance';
-  retainUntil?: string;
-  legalHold?: boolean;
 }
 
 /** A minimal, locally-defined WORM write port (no concrete WORM implementation imported). */

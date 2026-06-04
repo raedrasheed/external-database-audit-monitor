@@ -7,12 +7,12 @@ export {
   type WormObjectKey,
   type WormBytes,
   type RetentionMode,
-  type PutOptions,
+  type WriterPutOptions,
   type ObjectLock,
   type WormWriter,
   type WormReader,
   type WormRetentionAdmin,
   type WormStore,
 } from './types.js';
-export { InMemoryWormStore } from './memory.js';
+export { InMemoryWormStore, type InMemoryWormConfig } from './memory.js';
 export { MinioWormStore, createMinioWormStore, type MinioWormConfig, type MinioRoleCredential } from './minio.js';

@@ -63,8 +63,7 @@ describe('MinioWormStore mandatory retention config (H4, unit)', () => {
 
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 const dec = (b: Uint8Array): string => new TextDecoder().decode(b);
-/** A retain-until far in the future, so the object is locked for the whole test. */
-const FUTURE = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString();
+/** Retention instants used by the retention-admin (Domain C) extension tests. */
 const LATER = new Date(Date.now() + 1000 * 60 * 60 * 24 * 730).toISOString();
 const EARLIER = new Date(Date.now() + 1000 * 60 * 60).toISOString();
 
@@ -78,7 +77,9 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     const useSSL = process.env.WORM_MINIO_SSL === 'true';
     const accessKey = process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin';
     const secretKey = process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin';
-    store = createMinioWormStore({ endPoint: ENDPOINT!, port, useSSL, accessKey, secretKey, bucket });
+    // B2: the writer relies SOLELY on the bucket default COMPLIANCE retention
+    // (born locked). Configure a default so writer puts succeed without retainUntil.
+    store = createMinioWormStore({ endPoint: ENDPOINT!, port, useSSL, accessKey, secretKey, bucket, defaultRetentionDays: 1 });
     rawClient = new (await import('minio')).Client({ endPoint: ENDPOINT!, port, useSSL, accessKey, secretKey });
     await store.ensureBucket();
   }, 60_000);
@@ -114,14 +115,16 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     expect(await nonLockStore.objectLockEnabled()).toBe(false);
   });
 
-  it('writes and reads an object back', async () => {
-    await store.writer().putImmutable('seg/0.json', enc('{"x":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
+  it('writes and reads an object back (born locked by the bucket default, B2)', async () => {
+    await store.writer().putImmutable('seg/0.json', enc('{"x":1}'), { retentionMode: 'compliance' });
     expect(dec(await store.reader().get('seg/0.json'))).toBe('{"x":1}');
+    // born locked: the bucket default applied COMPLIANCE retention server-side.
+    expect((await store.reader().headObjectLock('seg/0.json')).retainUntil).not.toBeNull();
   });
 
   it('writer cannot overwrite an existing object', async () => {
     await expect(
-      store.writer().putImmutable('seg/0.json', enc('{"x":2}'), { retentionMode: 'compliance', retainUntil: FUTURE }),
+      store.writer().putImmutable('seg/0.json', enc('{"x":2}'), { retentionMode: 'compliance' }),
     ).rejects.toBeInstanceOf(WormError);
     expect(dec(await store.reader().get('seg/0.json'))).toBe('{"x":1}'); // original intact
   });
@@ -145,8 +148,9 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     await expect(store.retentionAdmin().extendRetention('seg/0.json', EARLIER)).rejects.toBeTruthy(); // shorten denied
   });
 
-  it('legal hold blocks deletion (W-3)', async () => {
-    await store.writer().putImmutable('seg/hold.json', enc('held'), { retentionMode: 'compliance', retainUntil: FUTURE, legalHold: true });
+  it('legal hold blocks deletion (W-3) — placed by Domain C, never the writer (B2)', async () => {
+    await store.writer().putImmutable('seg/hold.json', enc('held'), { retentionMode: 'compliance' });
+    await store.retentionAdmin().placeLegalHold('seg/hold.json'); // Domain-C op
     const lock = await store.reader().headObjectLock('seg/hold.json');
     expect(lock.legalHold).toBe(true);
     await expect(store.retentionAdmin().deleteExpired('seg/hold.json', new Date().toISOString())).rejects.toBeInstanceOf(WormError);
@@ -163,18 +167,32 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
   });
 
   it('deleteExpired is VERSION-SCOPED and leaves no delete marker (H2)', async () => {
-    // A retained object whose COMPLIANCE retention EXPIRES shortly (lawful expiry).
+    // B2: the writer can no longer create a short-retained object (retention is the
+    // bucket default, ≥1 day). Build the pre-expired locked object via the RAW client
+    // in a dedicated no-default object-locked bucket, then exercise the ADAPTER's
+    // lawful version-scoped delete path.
+    const h2bucket = `edam-worm-h2-${Date.now().toString(36)}`;
+    const port = process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000;
+    const h2store = createMinioWormStore({
+      endPoint: ENDPOINT!, port, useSSL: process.env.WORM_MINIO_SSL === 'true',
+      accessKey: process.env.WORM_MINIO_ACCESS_KEY ?? 'minioadmin', secretKey: process.env.WORM_MINIO_SECRET_KEY ?? 'minioadmin',
+      bucket: h2bucket, // NO default retention: lets the raw fixture set a short window
+    });
+    await h2store.ensureBucket();
     const shortRetain = new Date(Date.now() + 2_000).toISOString();
-    await store.writer().putImmutable('h2/expiring.json', enc('{"u":1}'), { retentionMode: 'compliance', retainUntil: shortRetain });
+    const buf = Buffer.from(enc('{"u":1}'));
+    await rawClient.putObject(h2bucket, 'h2/expiring.json', buf, buf.length);
+    const st0 = await rawClient.statObject(h2bucket, 'h2/expiring.json');
+    await rawClient.putObjectRetention(h2bucket, 'h2/expiring.json', { mode: 'COMPLIANCE' as never, retainUntilDate: shortRetain, versionId: st0.versionId ?? '' });
     await new Promise((r) => setTimeout(r, 3_000)); // let the retention window pass
 
     // Capture the actual removeObject call args to prove a versionId is passed.
     const calls: Array<{ key: string; opts: unknown }> = [];
-    const raw = (store as unknown as { retentionAdminClient: { removeObject: (b: string, k: string, o?: unknown) => Promise<void> } }).retentionAdminClient;
+    const raw = (h2store as unknown as { retentionAdminClient: { removeObject: (b: string, k: string, o?: unknown) => Promise<void> } }).retentionAdminClient;
     const orig = raw.removeObject.bind(raw);
     raw.removeObject = async (b: string, k: string, o?: unknown) => { calls.push({ key: k, opts: o }); return orig(b, k, o); };
     try {
-      await store.retentionAdmin().deleteExpired('h2/expiring.json', new Date().toISOString());
+      await h2store.retentionAdmin().deleteExpired('h2/expiring.json', new Date().toISOString());
     } finally {
       raw.removeObject = orig;
     }
@@ -182,12 +200,12 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     expect(calls).toHaveLength(1);
     expect((calls[0]!.opts as { versionId?: string })?.versionId).toBeTruthy();
     // (B) no hide marker: the object is genuinely gone (not hidden by a delete marker).
-    await expect(store.reader().get('h2/expiring.json')).rejects.toBeInstanceOf(WormError);
-    expect(await store.reader().list('h2/expiring.json')).toEqual([]);
+    await expect(h2store.reader().get('h2/expiring.json')).rejects.toBeInstanceOf(WormError);
+    expect(await h2store.reader().list('h2/expiring.json')).toEqual([]);
   }, 15_000);
 
   it('deleteExpired denies a still-retained object; object remains visible (H2 compat W-7)', async () => {
-    await store.writer().putImmutable('h2/locked.json', enc('{"l":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
+    await store.writer().putImmutable('h2/locked.json', enc('{"l":1}'), { retentionMode: 'compliance' });
     await expect(store.retentionAdmin().deleteExpired('h2/locked.json', new Date().toISOString())).rejects.toBeInstanceOf(WormError);
     expect(dec(await store.reader().get('h2/locked.json'))).toBe('{"l":1}'); // still visible, not hidden
   });
@@ -225,8 +243,10 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     const rawRet = (await (rawClient.getObjectRetention(defBucket, 'd/auto.json') as unknown as Promise<{ mode?: string } | null>));
     expect(rawRet?.mode).toBe('COMPLIANCE');
 
-    // (explicit) write WITH a longer retainUntil -> explicit retention is respected (extended).
-    await defStore.writer().putImmutable('d/explicit.json', enc('{"e":1}'), { retentionMode: 'compliance', retainUntil: LATER });
+    // (longer retention, B2) the writer writes at the default floor; a LONGER
+    // retention is applied AFTER the write by Domain C (retentionAdmin), never the writer.
+    await defStore.writer().putImmutable('d/explicit.json', enc('{"e":1}'), { retentionMode: 'compliance' });
+    await defStore.retentionAdmin().extendRetention('d/explicit.json', LATER);
     expect((await defStore.reader().headObjectLock('d/explicit.json')).retainUntil).not.toBeNull();
 
     // (fail-closed) a store WITHOUT a default cannot write unretained.
@@ -250,6 +270,7 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
       port: process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000,
       useSSL: process.env.WORM_MINIO_SSL === 'true',
       bucket,
+      defaultRetentionDays: 1, // B2: writer relies on the bucket default retention
       credentials: {
         writer: c(process.env.WORM_MINIO_WRITER_KEY, process.env.WORM_MINIO_WRITER_SECRET),
         reader: c(process.env.WORM_MINIO_READER_KEY, process.env.WORM_MINIO_READER_SECRET),
@@ -257,7 +278,7 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
       },
     });
     expect(roleStore.roleSeparationEnforced).toBe(true);
-    await roleStore.writer().putImmutable('role/0.json', enc('{"role":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
+    await roleStore.writer().putImmutable('role/0.json', enc('{"role":1}'), { retentionMode: 'compliance' });
     expect(dec(await roleStore.reader().get('role/0.json'))).toBe('{"role":1}');
     await roleStore.retentionAdmin().extendRetention('role/0.json', LATER); // retention-admin op via its own client
   });
@@ -298,6 +319,28 @@ sodRun('MinIO WORM separation of duties (live IAM)', () => {
     await store.retentionAdmin().placeLegalHold(KEY);
     await store.retentionAdmin().liftLegalHold(KEY);
     await store.retentionAdmin().extendRetention(KEY, new Date(Date.now() + 10 * 86_400_000).toISOString());
+  });
+
+  it('B2: the adapter writer path issues ONLY putObject — never the denied retention/hold/delete APIs', async () => {
+    // Spy on the writer client (the restricted edam-writer identity). The writer
+    // put must touch NONE of putObjectRetention / setObjectLegalHold / removeObject,
+    // so it is compatible with the least-privilege writer policy (EDAM-S3-SOD-F1).
+    const wc = (store as unknown as { writerClient: Record<string, (...a: unknown[]) => unknown> }).writerClient;
+    const denied = ['putObjectRetention', 'setObjectLegalHold', 'removeObject'] as const;
+    const attempted: string[] = [];
+    const origs: Record<string, (...a: unknown[]) => unknown> = {};
+    for (const m of denied) {
+      origs[m] = wc[m]!.bind(wc);
+      wc[m] = (...a: unknown[]) => { attempted.push(m); return origs[m]!(...a); };
+    }
+    const k2 = `sod/b2-${Date.now().toString(36)}.json`;
+    try {
+      await store.writer().putImmutable(k2, enc('{"b2":1}'), { retentionMode: 'compliance' });
+    } finally {
+      for (const m of denied) wc[m] = origs[m]!;
+    }
+    expect(attempted).toEqual([]); // writer attempted none of the denied store calls
+    expect((await store.reader().headObjectLock(k2)).retainUntil).not.toBeNull(); // still born locked by the bucket default
   });
 
   it('deny: writer cannot delete / set retention / set legal hold (store 403)', async () => {

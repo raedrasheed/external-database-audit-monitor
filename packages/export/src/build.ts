@@ -168,11 +168,12 @@ export function buildEvidenceExportPackage(input: BuildExportInput): EvidenceExp
 export async function writeExportPackageToWorm(
   worm: WormWritePort,
   pkg: EvidenceExportPackage,
-  opts: { keyPrefix?: string; retainUntil?: string } = {},
+  opts: { keyPrefix?: string } = {},
 ): Promise<string> {
   const key = `${opts.keyPrefix ?? 'exports'}/${pkg.db_id}/${pkg.package_id}.json`;
   const bytes = new TextEncoder().encode(JSON.stringify(pkg));
-  const putOpts: WormPutOptions = { retentionMode: 'compliance', ...(opts.retainUntil !== undefined ? { retainUntil: opts.retainUntil } : {}) };
+  // B2: the writer cannot set retainUntil/legalHold; retention is the store default.
+  const putOpts: WormPutOptions = { retentionMode: 'compliance' };
   await worm.putImmutable(key, bytes, putOpts);
   return key;
 }

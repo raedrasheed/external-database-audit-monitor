@@ -196,11 +196,12 @@ describe('buildEvidenceExportPackage (T145)', () => {
         writes.push({ key, opts, bytes: bytes.length });
       },
     };
-    const key = await writeExportPackageToWorm(worm, pkg, { retainUntil: '2036-01-01T00:00:00.000Z' });
+    const key = await writeExportPackageToWorm(worm, pkg, {});
     expect(key).toBe('exports/kafel-dev-mysql/11111111-2222-4333-8444-555555555555.json');
     expect(writes).toHaveLength(1);
     expect(writes[0]!.opts.retentionMode).toBe('compliance');
-    expect(writes[0]!.opts.retainUntil).toBe('2036-01-01T00:00:00.000Z');
+    // B2: the writer's options carry ONLY retentionMode — no retainUntil/legalHold.
+    expect(Object.keys(writes[0]!.opts)).toEqual(['retentionMode']);
     expect(writes[0]!.bytes).toBeGreaterThan(0);
   });
 });

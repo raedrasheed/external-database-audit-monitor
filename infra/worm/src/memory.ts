@@ -11,7 +11,7 @@
 import {
   WormError,
   type ObjectLock,
-  type PutOptions,
+  type WriterPutOptions,
   type WormBytes,
   type WormObjectKey,
   type WormReader,
@@ -25,6 +25,17 @@ interface StoredObject {
   lock: ObjectLock;
 }
 
+/** Configuration for the in-memory fake. */
+export interface InMemoryWormConfig {
+  /**
+   * Default COMPLIANCE retain-until (RFC3339) applied to EVERY written object —
+   * models the store's bucket-default retention so the writer is born locked
+   * (EDAM-S3-SOD-F1 / B2). Omit ⇒ open-ended/permanent (the strongest: never
+   * deletable). Retention EXTENSION / legal hold are Domain-C ops, never the writer.
+   */
+  readonly defaultRetainUntil?: string;
+}
+
 function ms(instant: string): number {
   const t = Date.parse(instant);
   if (Number.isNaN(t)) throw new WormError(`invalid RFC3339 instant: ${instant}`);
@@ -33,21 +44,30 @@ function ms(instant: string): number {
 
 export class InMemoryWormStore implements WormStore {
   private readonly objects = new Map<WormObjectKey, StoredObject>();
+  /** Default retain-until applied to every write (born locked); null ⇒ open-ended (B2). */
+  private readonly defaultRetainUntil: string | null;
+
+  constructor(cfg: InMemoryWormConfig = {}) {
+    if (cfg.defaultRetainUntil !== undefined) ms(cfg.defaultRetainUntil); // validate RFC3339 (fail fast)
+    this.defaultRetainUntil = cfg.defaultRetainUntil ?? null;
+  }
 
   // --- data plane (private; exposed only through role-scoped handles) ---
 
   // Methods are async so any policy violation surfaces as a REJECTED promise
   // (never a synchronous throw), matching the contract of a real I/O backend.
-  private async putImmutable(key: WormObjectKey, bytes: WormBytes, opts: PutOptions): Promise<void> {
+  private async putImmutable(key: WormObjectKey, bytes: WormBytes, opts: WriterPutOptions): Promise<void> {
     if (this.objects.has(key)) {
       throw new WormError(`object already exists at "${key}"; WORM is append-only (no overwrite)`);
     }
+    // B2: the writer cannot set retention/hold. Retention is the store DEFAULT
+    // (born locked); legal hold is never set at write. Domain C mutates both later.
     this.objects.set(key, {
       bytes: Uint8Array.from(bytes), // defensive copy: stored bytes are immutable
       lock: {
         retentionMode: opts.retentionMode,
-        retainUntil: opts.retainUntil ?? null,
-        legalHold: opts.legalHold ?? false,
+        retainUntil: this.defaultRetainUntil,
+        legalHold: false,
       },
     });
   }

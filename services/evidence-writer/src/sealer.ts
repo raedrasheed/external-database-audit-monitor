@@ -15,7 +15,7 @@
 
 import { serializeCanonical, rowHash, GENESIS_ROW_HASH } from '@edam/canonical';
 import type { Cce } from '@edam/cce-model';
-import type { PutOptions, WormWriter } from '@edam/worm';
+import type { WriterPutOptions, WormWriter } from '@edam/worm';
 import {
   verifySegmentChain,
   buildSegmentManifest,
@@ -61,8 +61,8 @@ export interface SegmentSealerDeps {
   alarms: SealAlarmSink;
   /** Clock; sealed_at is recorded ONCE per seal (stable for reproducibility). */
   now: () => string;
-  retainUntil?: string;
-  legalHold?: boolean;
+  // NOTE: no retainUntil/legalHold (EDAM-S3-SOD-F1 / B2). Retention is the store's
+  // bucket-default COMPLIANCE retention (born locked); hold/extension are Domain C.
 }
 
 /** Deterministic WORM key for a segment manifest object. */
@@ -102,12 +102,10 @@ export class SegmentSealer {
     this.deps = deps;
   }
 
-  private putOptions(): PutOptions {
-    return {
-      retentionMode: 'compliance',
-      ...(this.deps.retainUntil ? { retainUntil: this.deps.retainUntil } : {}),
-      ...(this.deps.legalHold ? { legalHold: true } : {}),
-    };
+  // B2: writer puts carry ONLY the compliance mode; retention is the store default
+  // (born locked, H4); legal hold / extension are Domain-C ops (S-7).
+  private putOptions(): WriterPutOptions {
+    return { retentionMode: 'compliance' };
   }
 
   private failVerification(stage: 'INTRA_CHAIN' | 'CROSS_SEGMENT' | 'MANIFEST', failures: string[], seg: SealReadySegment, at: string): SealOutcome {

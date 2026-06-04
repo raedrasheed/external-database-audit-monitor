@@ -25,7 +25,6 @@ import { validateEvidenceSegmentManifest } from '@edam/contracts';
 const UUID = '3e11fa47-71ca-11e1-9e33-c80aa9429562';
 const HEALTHY = { state: 'HEALTHY' as const, source_config: { binlog_format: 'ROW', binlog_row_image: 'FULL', gtid_mode: 'ON', replica_identity: null, log_bin: 'ON', config_snapshot_id: 'cfg' } };
 const NOW = () => '2026-06-01T10:05:00.000Z';
-const RETAIN = '2031-01-01T00:00:00.000Z';
 const dec = (b: Uint8Array): string => new TextDecoder().decode(b);
 
 function cce(seq: number) {
@@ -51,10 +50,10 @@ interface Harness {
 
 function harness(): Harness {
   const store = new InMemoryWormStore();
-  const objectWriter = new EvidenceWriter({ worm: store.writer(), dlq: new DlqService({ store: new InMemoryDlqStore(), alarms: new InMemoryDlqAlarmSink() }), retainUntil: RETAIN, now: NOW });
+  const objectWriter = new EvidenceWriter({ worm: store.writer(), dlq: new DlqService({ store: new InMemoryDlqStore(), alarms: new InMemoryDlqAlarmSink() }), now: NOW });
   const heads: SegmentHead[] = [];
   const alarms: SealAlarm[] = [];
-  const sealer = new SegmentSealer({ objectWriter, worm: store.writer(), emitHead: (h) => heads.push(h), alarms: { raise: (a) => alarms.push(a) }, now: NOW, retainUntil: RETAIN });
+  const sealer = new SegmentSealer({ objectWriter, worm: store.writer(), emitHead: (h) => heads.push(h), alarms: { raise: (a) => alarms.push(a) }, now: NOW });
   return { store, sealer, heads, alarms };
 }
 
