@@ -34,6 +34,29 @@ database.
 > HTTP; production uses mTLS + a real HSM/TSA (spec §15 S-4). Validate the stack's
 > structural completeness with `npm run compose-validate`.
 
+## WORM Separation of Duties (EDAM-S3-SoD)
+
+`minio-init` provisions **three distinct least-privilege MinIO identities** for the
+WORM evidence store (S-6/S-7), with the policies in [`minio/policies/`](./minio/policies):
+
+| Role | Allowed (least privilege) | Denied (explicit) |
+|---|---|---|
+| **writer** (`edam-writer`) | `s3:PutObject`, `s3:GetObject` (existence pre-check) on `evidence/*` | delete, version-delete, **PutObjectRetention**, **PutObjectLegalHold**, BypassGovernanceRetention, bucket-policy/lock/versioning config |
+| **reader** (`edam-reader`) | `s3:GetObject`, `GetObjectRetention`, `GetObjectLegalHold`, `ListBucket`, bucket-config **reads** | **all writes** (PutObject), delete, retention/legal-hold puts, bucket config |
+| **retention-admin** (`edam-retention-admin`) | retention + legal-hold **management** (`Put/GetObjectRetention`, `Put/GetObjectLegalHold`), bucket bootstrap (`Put/GetBucketVersioning`, `Put/GetBucketObjectLockConfiguration`, `ListBucket`) | **content write** (PutObject), **delete / version-delete**, BypassGovernanceRetention, bucket policy |
+
+Configure `MinioWormStore` with the per-role `credentials.{writer,reader,retentionAdmin}`
+(the dev single-credential fallback is **development only — role separation NOT
+enforced**). Credentials come from the `WORM_*_USER` / `WORM_*_SECRET` env (see
+`.env.example`).
+
+> **Production boundary.** This task (EDAM-S3-SoD) implements **IAM / credential
+> separation only**. It does **not** yet prove every store-level 403 enforcement
+> case — that proof is **EDAM-S3-POLICY-AUDIT** (export + audit the policies) and
+> **H5** (the store-level enforcement suite). Lawful expiry deletion is
+> dual-controlled (S-2/S-8) and is **not** a standing capability of any of these
+> three roles — hence retention-admin is denied delete/version-delete.
+
 ## Usage
 
 ```bash

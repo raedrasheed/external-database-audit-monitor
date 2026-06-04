@@ -171,9 +171,18 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-edam-evidence}
+      # Separation-of-Duties role credentials (EDAM-S3-SoD): provisioned as three
+      # distinct least-privilege MinIO identities. Dev defaults; override via .env.
+      WORM_WRITER_USER: ${WORM_WRITER_USER:-edam-writer}
+      WORM_WRITER_SECRET: ${WORM_WRITER_SECRET:-edam-writer-secret-change-me}
+      WORM_READER_USER: ${WORM_READER_USER:-edam-reader}
+      WORM_READER_SECRET: ${WORM_READER_SECRET:-edam-reader-secret-change-me}
+      WORM_RETENTION_ADMIN_USER: ${WORM_RETENTION_ADMIN_USER:-edam-retention-admin}
+      WORM_RETENTION_ADMIN_SECRET: ${WORM_RETENTION_ADMIN_SECRET:-edam-retention-admin-secret-change-me}
     entrypoint: ["/bin/sh", "/init/init-bucket.sh"]
     volumes:
       - ./minio/init-bucket.sh:/init/init-bucket.sh:ro
+      - ./minio/policies:/policies:ro
     restart: "no"
 
   # -------------------------------------------------------------------------

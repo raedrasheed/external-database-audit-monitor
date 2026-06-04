@@ -28,4 +28,34 @@ mc retention set --default COMPLIANCE 365d "local/${BUCKET}" >/dev/null 2>&1 \
   && echo "[minio-init] default COMPLIANCE retention set (365d)" \
   || echo "[minio-init] default retention not set (writer enforces per-object retention; continuing)"
 
-echo "[minio-init] bucket ${BUCKET} ready (object-lock + versioning)."
+# --- Separation of Duties (EDAM-S3-SoD): provision three least-privilege IAM
+#     identities (writer / reader / retention-admin) with distinct policies, so
+#     role separation is enforced by the STORE, not by convention (S-6/S-7).
+#     The bucket name in the committed policies is `edam-evidence`; a non-default
+#     MINIO_BUCKET is patched in below. Idempotent. ---
+provision_role() {
+  role="$1"; user="$2"; secret="$3"; policy_file="/policies/edam-${role}-policy.json"
+  if [ -z "$user" ] || [ -z "$secret" ]; then
+    echo "[minio-init] SoD ${role}: no credentials provided (skipping — set the *_KEY/*_SECRET env)"; return 0
+  fi
+  # Patch the bucket name if a non-default bucket is configured.
+  pf="/tmp/edam-${role}-policy.json"
+  sed "s/edam-evidence/${BUCKET}/g" "$policy_file" > "$pf"
+  mc admin policy create local "edam-${role}" "$pf" >/dev/null 2>&1 \
+    && echo "[minio-init] SoD policy edam-${role} created" \
+    || echo "[minio-init] SoD policy edam-${role} already exists"
+  mc admin user add local "$user" "$secret" >/dev/null 2>&1 \
+    && echo "[minio-init] SoD user ${user} created" \
+    || echo "[minio-init] SoD user ${user} already exists"
+  mc admin policy attach local "edam-${role}" --user "$user" >/dev/null 2>&1 || true
+}
+
+if [ -f /policies/edam-writer-policy.json ]; then
+  provision_role writer          "${WORM_WRITER_USER:-}"          "${WORM_WRITER_SECRET:-}"
+  provision_role reader          "${WORM_READER_USER:-}"          "${WORM_READER_SECRET:-}"
+  provision_role retention-admin "${WORM_RETENTION_ADMIN_USER:-}" "${WORM_RETENTION_ADMIN_SECRET:-}"
+else
+  echo "[minio-init] SoD policies not mounted; skipping per-role provisioning"
+fi
+
+echo "[minio-init] bucket ${BUCKET} ready (object-lock + versioning + SoD roles)."

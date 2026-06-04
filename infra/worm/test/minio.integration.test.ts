@@ -12,6 +12,9 @@ import { createMinioWormStore, WormError, type MinioWormStore } from '../src/ind
 
 const ENDPOINT = process.env.WORM_MINIO_ENDPOINT;
 const run = ENDPOINT ? describe : describe.skip;
+// SoD allow/deny needs the THREE provisioned least-privilege users (minio-init).
+// Opt-in via WORM_MINIO_SOD=true so the default live run isn't coupled to it.
+const sodRun = ENDPOINT && process.env.WORM_MINIO_SOD === 'true' ? describe : describe.skip;
 
 // --- H1 per-role credential config (UNIT — no MinIO required; the minio Client
 //     constructor is lazy/does not connect). ---
@@ -257,5 +260,64 @@ run('MinIO Object-Lock WORM adapter (live)', () => {
     await roleStore.writer().putImmutable('role/0.json', enc('{"role":1}'), { retentionMode: 'compliance', retainUntil: FUTURE });
     expect(dec(await roleStore.reader().get('role/0.json'))).toBe('{"role":1}');
     await roleStore.retentionAdmin().extendRetention('role/0.json', LATER); // retention-admin op via its own client
+  });
+});
+
+// --- EDAM-S3-SoD: separation of duties via least-privilege IAM identities.
+//     Requires the three provisioned users (minio-init) on the edam-evidence bucket.
+//     WORM_MINIO_SOD=true
+//     WORM_MINIO_WRITER_KEY/SECRET, _READER_KEY/SECRET, _ADMIN_KEY/SECRET ---
+sodRun('MinIO WORM separation of duties (live IAM)', () => {
+  const port = process.env.WORM_MINIO_PORT ? Number(process.env.WORM_MINIO_PORT) : 9000;
+  const useSSL = process.env.WORM_MINIO_SSL === 'true';
+  const cred = (k?: string, s?: string) => ({ accessKey: k!, secretKey: s! });
+  const writer = cred(process.env.WORM_MINIO_SOD_WRITER_KEY, process.env.WORM_MINIO_SOD_WRITER_SECRET);
+  const reader = cred(process.env.WORM_MINIO_SOD_READER_KEY, process.env.WORM_MINIO_SOD_READER_SECRET);
+  const admin = cred(process.env.WORM_MINIO_SOD_ADMIN_KEY, process.env.WORM_MINIO_SOD_ADMIN_SECRET);
+  const bucket = 'edam-evidence';
+  // Run-unique key: the bucket is shared + object-locked, so a fixed key would
+  // collide (no-overwrite) on a re-run.
+  const KEY = `sod/it-${Date.now().toString(36)}.json`;
+  let store: MinioWormStore;
+
+  beforeAll(async () => {
+    store = createMinioWormStore({ endPoint: ENDPOINT!, port, useSSL, bucket, defaultRetentionDays: 1, credentials: { writer, reader, retentionAdmin: admin } });
+    await store.ensureBucket();
+  }, 60_000);
+
+  it('three roles are distinct IAM identities', () => {
+    const keys = new Set([writer.accessKey, reader.accessKey, admin.accessKey]);
+    expect(keys.size).toBe(3);
+    expect(store.roleSeparationEnforced).toBe(true);
+  });
+
+  it('allow: writer writes, reader reads, retention-admin manages retention/legal-hold', async () => {
+    await store.writer().putImmutable(KEY, enc('{"sod":1}'), { retentionMode: 'compliance' });
+    expect(dec(await store.reader().get(KEY))).toBe('{"sod":1}');
+    expect((await store.reader().headObjectLock(KEY)).retainUntil).not.toBeNull();
+    await store.retentionAdmin().placeLegalHold(KEY);
+    await store.retentionAdmin().liftLegalHold(KEY);
+    await store.retentionAdmin().extendRetention(KEY, new Date(Date.now() + 10 * 86_400_000).toISOString());
+  });
+
+  it('deny: writer cannot delete / set retention / set legal hold (store 403)', async () => {
+    const wc = new (await import('minio')).Client({ endPoint: ENDPOINT!, port, useSSL, ...writer });
+    const st = await wc.statObject(bucket, KEY).catch(() => null);
+    await expect(wc.removeObject(bucket, KEY, { versionId: st?.versionId ?? undefined })).rejects.toBeTruthy();
+    await expect(wc.putObjectRetention(bucket, KEY, { mode: 'COMPLIANCE' as never, retainUntilDate: new Date(Date.now() + 1e11).toISOString(), versionId: st?.versionId ?? '' })).rejects.toBeTruthy();
+    await expect((wc.setObjectLegalHold(bucket, KEY, { status: 'ON' as never }) as unknown as Promise<void>)).rejects.toBeTruthy();
+  });
+
+  it('deny: reader cannot write or delete (store 403)', async () => {
+    const rc = new (await import('minio')).Client({ endPoint: ENDPOINT!, port, useSSL, ...reader });
+    await expect(rc.putObject(bucket, 'sod/reader-x.json', Buffer.from('{}'), 2)).rejects.toBeTruthy();
+    await expect(rc.removeObject(bucket, KEY)).rejects.toBeTruthy();
+  });
+
+  it('deny: retention-admin cannot write content or delete versions (store 403)', async () => {
+    const ac = new (await import('minio')).Client({ endPoint: ENDPOINT!, port, useSSL, ...admin });
+    await expect(ac.putObject(bucket, 'sod/admin-y.json', Buffer.from('{}'), 2)).rejects.toBeTruthy();
+    const st = await ac.statObject(bucket, 'sod/it.json').catch(() => null);
+    await expect(ac.removeObject(bucket, 'sod/it.json', { versionId: st?.versionId ?? undefined })).rejects.toBeTruthy();
   });
 });
