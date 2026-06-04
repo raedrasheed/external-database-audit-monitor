@@ -1,0 +1,143 @@
+{
+  "artifact": "edam-s3-reval-result",
+  "task": "EDAM-S3-REVAL",
+  "generated_at": "2026-06-04T07:33:33.467Z",
+  "live": {
+    "component": "MinIO WORM (S3 Object Lock)",
+    "endpoint": "localhost:9000",
+    "bucket": "edam-evidence",
+    "object_lock": true,
+    "versioning_enabled": true,
+    "role_separation_enforced": true,
+    "default_retention_days": 365
+  },
+  "objects": 3,
+  "segments": 2,
+  "segment_ids": [
+    "seg-reval-mpz6i8pl-000000",
+    "seg-reval-mpz6i8pl-000001"
+  ],
+  "read_back_from_live_minio": {
+    "count": 3,
+    "all_born_locked": true,
+    "all_compliance": true,
+    "all_read_back_ok": true,
+    "sample": {
+      "key": "kafel-dev-mysql/seg-reval-mpz6i8pl-000000/000000.cce.json",
+      "worm_object_key": "kafel-dev-mysql/seg-reval-mpz6i8pl-000000/000000.cce.json",
+      "segment_id": "seg-reval-mpz6i8pl-000000",
+      "bytes": 1451,
+      "read_back_ok": true,
+      "born_locked": true,
+      "store_retention_mode": "COMPLIANCE"
+    }
+  },
+  "sample_worm_object_key": "kafel-dev-mysql/seg-reval-mpz6i8pl-000000/000000.cce.json",
+  "sample_segment_id": "seg-reval-mpz6i8pl-000000",
+  "sample_anchor_ref": {
+    "head_hash": "sha256:07ac10b6ff97c06835364aa0eeaa001120d65180dbf7a71f0ff2cfe7142b6ce5",
+    "hsm_signature": "fK0PtpdowK8kG9KGOBPDuvR9kHfTLKAhl9nNStrd+5LrCUfw3AfttA+VFAd3T6yqQobwUKntfvW3u3MWvpZgAg==",
+    "anchor_provider": "rfc3161"
+  },
+  "t161_m2_closure": {
+    "adapter_overwrite_rejected": true,
+    "store_writer_delete_denied": true,
+    "store_writer_delete_detail": "AccessDenied",
+    "store_root_versiondelete_denied": true,
+    "store_root_versiondelete_detail": "InvalidRequest",
+    "object_still_present": true
+  },
+  "valid_offline_run": {
+    "exit_code": 0,
+    "overall": "PASS",
+    "export_signature": "PASS",
+    "pass": true
+  },
+  "drills": [
+    {
+      "drill": "byte-flip",
+      "wv": "WV-2",
+      "exit_code": 1,
+      "check": "per_object_hash",
+      "result": "FAIL",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "withhold-object",
+      "wv": "WV-3",
+      "exit_code": 2,
+      "fail_mode": "hydration (fail-closed)",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "break-link",
+      "wv": "WV-4",
+      "exit_code": 1,
+      "check": "object_chain",
+      "result": "FAIL",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "forge-signature",
+      "wv": "WV-5",
+      "exit_code": 1,
+      "check": "hsm_signature",
+      "result": "FAIL",
+      "export_signature": "PASS",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "tamper-token",
+      "wv": "WV-6",
+      "exit_code": 1,
+      "check": "anchor_token",
+      "result": "FAIL",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "segment-gap",
+      "wv": "WV-9",
+      "exit_code": 1,
+      "export_signature": "FAIL",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "offset-gap",
+      "wv": "WV-10",
+      "exit_code": 1,
+      "check": "no_missing_event",
+      "result": "FAIL",
+      "export_signature": "PASS",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "legal-hold-delete",
+      "wv": "WV-8",
+      "via": "live MinIO/WORM",
+      "adapter_denied": true,
+      "store_denied": true,
+      "message": "object at \"kafel-dev-mysql/legal-hold-reval-mpz6i8pl/000000.cce.json\" is under legal hold; deletion denied (W-3)",
+      "fails_as_expected": true
+    },
+    {
+      "drill": "tsa-outage",
+      "wv": "WV-13",
+      "via": "in-process anchoring",
+      "status": "failed",
+      "no_fabricated_token": true,
+      "builder_refused": true,
+      "fails_as_expected": true
+    }
+  ],
+  "all_drills_fail_as_expected": true,
+  "acceptance": {
+    "live_path_ok": true,
+    "two_or_more_segments": true,
+    "worm_object_key_populated": true,
+    "segment_id_populated": true,
+    "anchor_ref_populated": true,
+    "store_level_immutability": true,
+    "valid_export_passes": true,
+    "all_drills_fail": true
+  }
+}

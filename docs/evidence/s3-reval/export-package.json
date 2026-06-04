@@ -1,0 +1,54 @@
+{
+  "package_version": "evidence-export-package-1.0",
+  "package_id": "11111111-2222-4333-8444-555555555555",
+  "db_id": "kafel-dev-mysql",
+  "purpose": "legal_audit",
+  "created_at": "2026-06-04T12:00:00.000Z",
+  "created_by": "edam-s3-reval",
+  "object_refs": [
+    {
+      "object_id": "18429c63-e829-5721-ae2a-3a39c81093a2",
+      "object_type": "cce",
+      "worm_object_key": "kafel-dev-mysql/seg-reval-mpz6i8pl-000001/000000.cce.json",
+      "event_hash": "sha256:d6a3452cef7f070208d5e8ca66522efe4ab65930d383dd1bfc04e8f8e42a604f"
+    }
+  ],
+  "segment_manifests": [
+    "{\"manifest_version\":\"evidence-segment-manifest-1.0\",\"segment_id\":\"seg-reval-mpz6i8pl-000000\",\"db_id\":\"kafel-dev-mysql\",\"engine\":\"mysql\",\"segment_sequence\":0,\"opened_at\":\"2026-06-04T10:00:00.000Z\",\"sealed_at\":\"2026-06-04T10:00:01.000Z\",\"event_count\":2,\"first_envelope_id\":\"5f328d8e-5f92-59cf-bc4d-940e67822b32\",\"last_envelope_id\":\"4c21ab58-e8fd-5e6e-b540-943c211a5ab5\",\"first_row_hash\":\"sha256:8560e22da2e7ca79da5a3dd8404e2c773820026a3f1354c3b5839b551ff3bda6\",\"last_row_hash\":\"sha256:42837ddfc15e9c3bed4171a6f67ea3be78152c6ed5957e95cdace6987c551f80\",\"object_list\":[{\"seq\":0,\"object_id\":\"5f328d8e-5f92-59cf-bc4d-940e67822b32\",\"worm_object_key\":\"kafel-dev-mysql/seg-reval-mpz6i8pl-000000/000000.cce.json\",\"object_type\":\"cce\"},{\"seq\":1,\"object_id\":\"4c21ab58-e8fd-5e6e-b540-943c211a5ab5\",\"worm_object_key\":\"kafel-dev-mysql/seg-reval-mpz6i8pl-000000/000001.cce.json\",\"object_type\":\"cce\"}],\"object_hash_list\":[{\"seq\":0,\"event_hash\":\"sha256:b0266a18cd85b8baea1ee33b5833abe5d51d8cf51da38c84227971b5c4797df6\",\"row_hash\":\"sha256:8560e22da2e7ca79da5a3dd8404e2c773820026a3f1354c3b5839b551ff3bda6\"},{\"seq\":1,\"event_hash\":\"sha256:1d0f6fc37234a43518d4538ad406f79d2038737b1a27537c722b013adea8c50b\",\"row_hash\":\"sha256:42837ddfc15e9c3bed4171a6f67ea3be78152c6ed5957e95cdace6987c551f80\"}],\"source_offset_range\":{\"first_offset_key\":\"3e11fa47-71ca-11e1-9e33-c80aa9429562:0\",\"last_offset_key\":\"3e11fa47-71ca-11e1-9e33-c80aa9429562:1\"},\"fidelity_summary\":{\"all_healthy\":true,\"degraded_count\":0,\"compromised_count\":0,\"reasons\":[]},\"completeness_summary\":{\"gap_detected\":false,\"expected_continuous\":true,\"notes\":[]},\"previous_segment\":null,\"manifest_hash\":\"sha256:1a73af75b6cf8a7b9cc2bc5d6427018609d91b0280792348a5c93494fff5c55f\"}",
+    "{\"manifest_version\":\"evidence-segment-manifest-1.0\",\"segment_id\":\"seg-reval-mpz6i8pl-000001\",\"db_id\":\"kafel-dev-mysql\",\"engine\":\"mysql\",\"segment_sequence\":1,\"opened_at\":\"2026-06-04T10:00:00.000Z\",\"sealed_at\":\"2026-06-04T10:00:01.000Z\",\"event_count\":1,\"first_envelope_id\":\"18429c63-e829-5721-ae2a-3a39c81093a2\",\"last_envelope_id\":\"18429c63-e829-5721-ae2a-3a39c81093a2\",\"first_row_hash\":\"sha256:64300a785d0bd621d290173be4785acfef0bee75311de3faa39270828085af62\",\"last_row_hash\":\"sha256:64300a785d0bd621d290173be4785acfef0bee75311de3faa39270828085af62\",\"object_list\":[{\"seq\":0,\"object_id\":\"18429c63-e829-5721-ae2a-3a39c81093a2\",\"worm_object_key\":\"kafel-dev-mysql/seg-reval-mpz6i8pl-000001/000000.cce.json\",\"object_type\":\"cce\"}],\"object_hash_list\":[{\"seq\":0,\"event_hash\":\"sha256:d6a3452cef7f070208d5e8ca66522efe4ab65930d383dd1bfc04e8f8e42a604f\",\"row_hash\":\"sha256:64300a785d0bd621d290173be4785acfef0bee75311de3faa39270828085af62\"}],\"source_offset_range\":{\"first_offset_key\":\"3e11fa47-71ca-11e1-9e33-c80aa9429562:2\",\"last_offset_key\":\"3e11fa47-71ca-11e1-9e33-c80aa9429562:2\"},\"fidelity_summary\":{\"all_healthy\":true,\"degraded_count\":0,\"compromised_count\":0,\"reasons\":[]},\"completeness_summary\":{\"gap_detected\":false,\"expected_continuous\":true,\"notes\":[]},\"previous_segment\":{\"segment_id\":\"seg-reval-mpz6i8pl-000000\",\"segment_sequence\":0,\"segment_hash\":\"sha256:bdf5e90f7c6f7d1a36fb34f936cc72aa0e1d27b2de73d700baeb2d2cad0f02e3\"},\"manifest_hash\":\"sha256:7144dc871098b468d08eeb3821f6c88a22172126c3f442c4e18cda9e87508a68\"}"
+  ],
+  "anchor_records": [
+    "{\"anchor_version\":\"anchor-record-1.0\",\"anchor_id\":\"3e11fa47-71ca-11e1-9e33-c80aa9429562\",\"db_id\":\"kafel-dev-mysql\",\"head\":{\"segment_id\":\"seg-reval-mpz6i8pl-000000\",\"segment_sequence\":0,\"segment_hash\":\"sha256:bdf5e90f7c6f7d1a36fb34f936cc72aa0e1d27b2de73d700baeb2d2cad0f02e3\",\"last_row_hash\":\"sha256:42837ddfc15e9c3bed4171a6f67ea3be78152c6ed5957e95cdace6987c551f80\",\"head_count\":1,\"signed_at\":\"2026-06-04T10:05:01.000Z\"},\"hsm_signature\":{\"algorithm\":\"ed25519\",\"signing_key_id\":\"edam-dev-ed25519-7c98580ac1c6f8f2\",\"signature\":\"fK0PtpdowK8kG9KGOBPDuvR9kHfTLKAhl9nNStrd+5LrCUfw3AfttA+VFAd3T6yqQobwUKntfvW3u3MWvpZgAg==\"},\"anchor_provider\":{\"type\":\"rfc3161\",\"rfc3161_token\":\"eyJ0c3RfaW5mbyI6eyJ2ZXJzaW9uIjoxLCJwb2xpY3kiOiJlZGFtLmRldi50c2EucG9saWN5LjEiLCJtZXNzYWdlX2ltcHJpbnQiOnsiaGFzaF9hbGdvcml0aG0iOiJzaGEtMjU2IiwiaGFzaGVkX21lc3NhZ2UiOiJzaGEyNTY6MDdhYzEwYjZmZjk3YzA2ODM1MzY0YWEwZWVhYTAwMTEyMGQ2NTE4MGRiZjdhNzFmMGZmMmNmZTcxNDJiNmNlNSJ9LCJzZXJpYWxfbnVtYmVyIjoiYWQ4ZDY2MjcwNjg3MWZiOSIsImdlbl90aW1lIjoiMjAyNi0wNi0wNFQwNzozMzozMy43NTNaIiwidHNhX2NlcnRfcmVmIjoiZGV2LXRzYS1lZDI1NTE5LWY3MThjOTAxNmM1M2U0ODAifSwic2lnbmF0dXJlIjoiczU1QnlFSXNPWHR4M2lXaGt0Q0ZQTUVPTnBOaFltaFUreHlIT1J6Q2hwRXpCYkpVUndSTUplMHpJQ1lOdVJDWGxIV0lXd3FYMDljVTlkcXJxbXVYRGc9PSIsInNpZ25hdHVyZV9hbGdvcml0aG0iOiJlZDI1NTE5In0=\",\"tsa_cert_ref\":\"dev-tsa-ed25519-f718c9016c53e480\"},\"created_at\":\"2026-06-04T10:05:02.000Z\"}",
+    "{\"anchor_version\":\"anchor-record-1.0\",\"anchor_id\":\"3e11fa47-71ca-11e1-9e33-c80aa9429562\",\"db_id\":\"kafel-dev-mysql\",\"head\":{\"segment_id\":\"seg-reval-mpz6i8pl-000001\",\"segment_sequence\":1,\"segment_hash\":\"sha256:6e5ce1bf6fbc823c12a3381d4bd5cdfedd5b6bb57aa2d64de97655573f3339e4\",\"last_row_hash\":\"sha256:64300a785d0bd621d290173be4785acfef0bee75311de3faa39270828085af62\",\"head_count\":1,\"signed_at\":\"2026-06-04T10:05:01.000Z\"},\"hsm_signature\":{\"algorithm\":\"ed25519\",\"signing_key_id\":\"edam-dev-ed25519-7c98580ac1c6f8f2\",\"signature\":\"YHGgRmPGyMtRexG4f8bmJMdbrLS6YHUl3O15Pcf66TIg5th856VhZddDFJjHTQqv2lDLkBz4IhHjuOX0ywaZDA==\"},\"anchor_provider\":{\"type\":\"rfc3161\",\"rfc3161_token\":\"eyJ0c3RfaW5mbyI6eyJ2ZXJzaW9uIjoxLCJwb2xpY3kiOiJlZGFtLmRldi50c2EucG9saWN5LjEiLCJtZXNzYWdlX2ltcHJpbnQiOnsiaGFzaF9hbGdvcml0aG0iOiJzaGEtMjU2IiwiaGFzaGVkX21lc3NhZ2UiOiJzaGEyNTY6NGY5MDQzZGQ3NzBiNzEzYThiZjNmN2IwYzMzNjEyZmRiNWE0OTRjZDQwMTVhZjFkZmM4YWY1YWRjNDU3ZDU1YSJ9LCJzZXJpYWxfbnVtYmVyIjoiN2VlNDEyNTVhMzcyZWM5ZSIsImdlbl90aW1lIjoiMjAyNi0wNi0wNFQwNzozMzozMy43NjVaIiwidHNhX2NlcnRfcmVmIjoiZGV2LXRzYS1lZDI1NTE5LWY3MThjOTAxNmM1M2U0ODAifSwic2lnbmF0dXJlIjoiN0pEWHo2Q3FkRlNjcXRsK0dmZWg4OFNFSjdhd2JERlJobURkZkd1WnJmLytaRmZjYjZPVTFIT1VmVzl4TitEYVRSNE9ucFVYS3NVS1RlM3FrZXdOQ2c9PSIsInNpZ25hdHVyZV9hbGdvcml0aG0iOiJlZDI1NTE5In0=\",\"tsa_cert_ref\":\"dev-tsa-ed25519-f718c9016c53e480\"},\"created_at\":\"2026-06-04T10:05:02.000Z\"}"
+  ],
+  "public_keys": [
+    {
+      "key_id": "edam-dev-ed25519-7c98580ac1c6f8f2",
+      "algorithm": "ed25519",
+      "public_key": "MCowBQYDK2VwAyEAij8G+Lgq2HbXyMV19yTXJOxV3gwGUoHI7kN5KBfRvWE=",
+      "revoked_at": null
+    }
+  ],
+  "timestamp_certificates": [
+    "{\"tsa_cert_ref\":\"dev-tsa-ed25519-f718c9016c53e480\",\"algorithm\":\"ed25519\",\"public_key\":\"MCowBQYDK2VwAyEAvYeUJS+cem6JWmnGf09+BPCBCx5bb6YCQFJGJmit/j4=\",\"subject\":\"CN=EDAM Dev TSA\"}"
+  ],
+  "verification_instructions": {
+    "spec_id": "worm-v1",
+    "spec_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "chain_of_custody_log": [
+    {
+      "custody_event_id": "ce-1",
+      "action": "export",
+      "reviewer_identity": "auditor",
+      "reason": "reval",
+      "occurred_at": "2026-06-04T12:00:00.000Z"
+    }
+  ],
+  "export_signature": {
+    "algorithm": "ed25519",
+    "signing_key_id": "edam-dev-export-ed25519-dc6f94b0316cbf04",
+    "signature": "1NLaaGCGrJjrxqgrjgritbxAbH1+7yHehCB5fEDdu0WIpdbWIYw4564DnDXDKodWHjVIErZ22Y98sMg64f3dCw==",
+    "package_hash": "sha256:ae4608a7d6e0203c144ea1b1d38c9ee466c4242bbceaaa0c9e301a865ac3bc9d"
+  }
+}
