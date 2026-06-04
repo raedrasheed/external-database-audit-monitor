@@ -9,6 +9,7 @@
     "@edam/canonical": "*",
     "@edam/contracts": "*",
     "@edam/cce-model": "*",
-    "@edam/dlq": "*"
+    "@edam/dlq": "*",
+    "ioredis": "^5.4.1"
   }
 }

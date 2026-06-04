@@ -18,7 +18,8 @@
   "scripts": {
     "build:collector": "esbuild services/cdc-collector/src/index.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/cdc-collector/index.cjs --external:pg-native",
     "build:evidence-writer": "esbuild services/evidence-writer/src/main.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/evidence-writer/index.cjs --external:pg-native",
-    "build:services": "npm run build:collector && npm run build:evidence-writer",
+    "build:normalization": "esbuild services/normalization/src/main.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/normalization/index.cjs --external:pg-native",
+    "build:services": "npm run build:collector && npm run build:normalization && npm run build:evidence-writer",
     "compose:up": "docker compose -f deploy/compose/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/compose/docker-compose.yml down -v",
     "compose:config": "docker compose -f deploy/compose/docker-compose.yml config",

@@ -143,6 +143,33 @@ services:
       CDC_PASSWORD: ${KAFEL_CDC_PASSWORD:?set KAFEL_CDC_PASSWORD in .env.pilot}
       CDC_ACCESS: read-only
 
+  # Normalization (R-11c containerized) — the connective stage: consumes CapturedRecords
+  # from the collector's bus (CDC_BUS_STREAM) and publishes CCEs (CDC_CCE_STREAM) for the
+  # evidence-writer. Fidelity defaults to UNATTESTED (DEGRADED) unless FIDELITY_ATTESTED=true
+  # (the runbook pre-flight verifies ROW/FULL/GTID). PK_MAP optionally maps schema.table ->
+  # [pk cols] (default ["id"]).
+  normalization:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        SERVICE: normalization
+    image: edam/normalization:pilot
+    container_name: edam-pilot-normalization
+    restart: unless-stopped
+    networks: [edam-pilot]
+    depends_on:
+      redis:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      CDC_BUS_STREAM: ${CDC_BUS_STREAM:-edam:captured}
+      CDC_CCE_STREAM: ${CDC_CCE_STREAM:-edam:cce}
+      PK_MAP: ${PK_MAP:-}
+      FIDELITY_ATTESTED: ${FIDELITY_ATTESTED:-false}
+      SENSITIVE_FIELDS: ${SENSITIVE_FIELDS:-}
+
   # Evidence-writer (R-11b containerized) — consumes CCEs from the bus, seals + signs +
   # anchors (DEV providers, R-01) and writes born-locked evidence to WORM via the WRITER
   # SoD identity. NOTE: the CCE stream (CDC_CCE_STREAM) is produced by the NORMALIZATION
