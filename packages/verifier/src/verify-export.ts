@@ -79,6 +79,15 @@ export function verifyExportSignature(pkg: EvidenceExportPackage, trustedExportK
       return fail(id, 'export signing key revoked at/before the package created_at');
     }
   }
+  // Honor the lower validity bound against the package created_at (P2-TRUST-GENERATOR;
+  // both bounds). Conditional: trust files without not_before are unaffected.
+  if (key.not_before != null) {
+    const notBefore = Date.parse(key.not_before);
+    const createdAt = Date.parse(pkg.created_at);
+    if (Number.isFinite(notBefore) && Number.isFinite(createdAt) && createdAt < notBefore) {
+      return fail(id, 'export signing key not yet valid at the package created_at (before not_before)');
+    }
+  }
 
   try {
     const message = Buffer.from(exportSigningMessage(recomputed));

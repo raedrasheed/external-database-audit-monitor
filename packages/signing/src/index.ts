@@ -53,3 +53,12 @@ export {
   type DualControlApproval,
   type KeyLifecycleAdmin,
 } from './key-registry.js';
+export {
+  buildTrustFile,
+  TrustFileGenerationError,
+  type TrustFileSigningKey,
+  type TrustFileAnchorCert,
+  type TrustFileMeta,
+  type GeneratedTrustFile,
+  type BuildTrustFileInput,
+} from './trust-file.js';

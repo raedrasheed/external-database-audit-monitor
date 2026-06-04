@@ -166,6 +166,20 @@ describe('§10 steps 7-8 (T143)', () => {
     expect(checkOf(run(f.segment, revoked, certs), 'hsm_signature').details ?? '').toMatch(/revoked/);
   });
 
+  it('6b. key used before not_before => hsm_signature FAIL (lower validity bound)', () => {
+    const f = anchoredSegment('rfc3161');
+    const { certs } = dirs(f);
+    const notYet = new InMemorySigningKeyDirectory([{ ...f.key, not_before: '2026-06-01T10:05:02.000Z' }]); // after signed_at 10:05:01
+    expect(checkOf(run(f.segment, notYet, certs), 'hsm_signature').details ?? '').toMatch(/not yet valid/);
+  });
+
+  it('6c. not_before at/before signed_at => hsm_signature PASS (and absence is unaffected)', () => {
+    const f = anchoredSegment('rfc3161');
+    const { certs } = dirs(f);
+    const valid = new InMemorySigningKeyDirectory([{ ...f.key, not_before: '2026-06-01T10:00:00.000Z' }]); // before signed_at
+    expect(checkOf(run(f.segment, valid, certs), 'hsm_signature').result).toBe('PASS');
+  });
+
   it('7. signature over a different head => hsm_signature FAIL', () => {
     const f = anchoredSegment('rfc3161');
     const { keys, certs } = dirs(f);

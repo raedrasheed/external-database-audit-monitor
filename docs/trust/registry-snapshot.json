@@ -1,0 +1,40 @@
+{
+  "_note": "EDAM-P2-TRUST-GENERATOR committed registry snapshot (DEV/TEST keys per decision D5). PUBLIC material only. The evidence plane includes a rotated-away + revoked key to exercise key history. trust.json is GENERATED from this by conformance/scripts/trust-file.ts; the drift guard (conformance/test/trust-file-drift.test.ts) recomputes and asserts equality. anchor_certs is the P2-TSA placeholder.",
+  "meta": {
+    "trust_version": 1,
+    "generated_at": "2026-06-04T00:00:00.000Z",
+    "ceremony_id": "CER-dev-0001"
+  },
+  "evidence": {
+    "active_key_id": "edam-dev-ed25519-acc748c4927f0b2c",
+    "records": [
+      {
+        "signing_key_id": "edam-dev-ed25519-6056025be23803d0",
+        "algorithm": "ed25519",
+        "public_key": "MCowBQYDK2VwAyEADkkhCw/hPsaMsiU8xwUm+i36GlTMM99sowHrpLHhI7k=",
+        "created_at": "2026-01-01T00:00:00.000Z",
+        "revoked_at": "2026-03-01T00:00:00.000Z"
+      },
+      {
+        "signing_key_id": "edam-dev-ed25519-acc748c4927f0b2c",
+        "algorithm": "ed25519",
+        "public_key": "MCowBQYDK2VwAyEAmqNnYc8dygiGHSq4YLeomvqCh7Zhh8cWK9esKTQaFCc=",
+        "created_at": "2026-03-01T00:00:00.000Z",
+        "revoked_at": null
+      }
+    ]
+  },
+  "export": {
+    "active_key_id": "edam-dev-ed25519-3613db6a6fd1b959",
+    "records": [
+      {
+        "signing_key_id": "edam-dev-ed25519-3613db6a6fd1b959",
+        "algorithm": "ed25519",
+        "public_key": "MCowBQYDK2VwAyEAd4KrTO34u32TtHp6jwcXZx/sDFGT+XXudzUS3badAPM=",
+        "created_at": "2026-01-01T00:00:00.000Z",
+        "revoked_at": null
+      }
+    ]
+  },
+  "anchor_certs": []
+}

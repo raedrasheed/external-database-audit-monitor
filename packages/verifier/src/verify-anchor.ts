@@ -109,6 +109,14 @@ function verifyHsmSignature(segment: VerifierSegment, record: AnchorRecord, payl
     const signedAt = Date.parse(payload.signed_at);
     if (Number.isFinite(revoked) && Number.isFinite(signedAt) && signedAt >= revoked) return fail([segId], 'signing key revoked at/before signed_at');
   }
+  // Honor the lower validity bound: a key used BEFORE its not_before is not yet valid
+  // (P2-TRUST-GENERATOR — both bounds: created_at <= signed_at < revoked_at). Conditional:
+  // trust files without not_before are unaffected (backward-compatible).
+  if (key.not_before != null) {
+    const notBefore = Date.parse(key.not_before);
+    const signedAt = Date.parse(payload.signed_at);
+    if (Number.isFinite(notBefore) && Number.isFinite(signedAt) && signedAt < notBefore) return fail([segId], 'signing key not yet valid at signed_at (signed before not_before)');
+  }
 
   try {
     const message = Buffer.from(anchorSigningMessage(payload)); // validates the payload + shared canonical bytes
