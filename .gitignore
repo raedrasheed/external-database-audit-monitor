@@ -24,3 +24,6 @@ compose-validate-proof.json
 
 # Pilot dev key PEMs (B6) — DEV-ONLY, never committed.
 deploy/pilot/keys/
+
+# Pilot runtime env — holds real Kafel/WORM secrets, never committed.
+deploy/pilot/.env.pilot
