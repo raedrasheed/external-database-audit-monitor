@@ -37,3 +37,10 @@ export {
   type SealAlarm,
   type SealAlarmSink,
 } from './sealer.js';
+// Runnable service composition root (R-11b) — CCE -> seal -> sign -> anchor -> WORM.
+export {
+  EvidenceWriterService,
+  anchorRecordKey,
+  type EvidenceWriterServiceDeps,
+  type ServiceStats,
+} from './service.js';

@@ -21,3 +21,6 @@ worm-no-mutate-proof.json
 verifier-isolation-proof.json
 evidence-conformance-report.json
 compose-validate-proof.json
+
+# Pilot dev key PEMs (B6) — DEV-ONLY, never committed.
+deploy/pilot/keys/

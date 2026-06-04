@@ -5,6 +5,7 @@
 // service (R-11c); until that lands there is no input. Full end-to-end is validated in
 // the Priority-2 Kafel pilot.
 import Redis from 'ioredis';
+import { readFileSync } from 'node:fs';
 import { createMinioWormStore } from '@edam/worm';
 import { DevEd25519Signer } from '@edam/signing';
 import { DevRfc3161Provider } from '@edam/anchoring';
@@ -39,6 +40,11 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     },
     caps: { maxEvents: Number(env.EVW_MAX_EVENTS ?? '512'), maxAgeMs: Number(env.EVW_MAX_AGE_MS ?? '300000') },
     sweepMs: Number(env.EVW_SWEEP_MS ?? '15000'),
+    // B6: FIXED dev signing + TSA keys (PEM file paths) so produced anchor records have a
+    // stable signing_key_id and are offline-verifiable against the published trust file.
+    // Omit ⇒ ephemeral keys (NOT offline-verifiable) — the pilot runbook requires these.
+    signingKeyPemFile: env.EVW_SIGNING_KEY_PEM_FILE,
+    tsaKeyPemFile: env.EVW_TSA_KEY_PEM_FILE,
   };
 }
 
@@ -49,10 +55,17 @@ async function main(): Promise<void> {
   const store = createMinioWormStore(cfg.worm);
   await store.ensureBucket();
 
+  const signingPem = cfg.signingKeyPemFile ? readFileSync(cfg.signingKeyPemFile, 'utf8') : undefined;
+  const tsaPem = cfg.tsaKeyPemFile ? readFileSync(cfg.tsaKeyPemFile, 'utf8') : undefined;
+  if (!signingPem || !tsaPem) {
+    // eslint-disable-next-line no-console
+    console.warn('[evw] WARNING: EVW_SIGNING_KEY_PEM_FILE/EVW_TSA_KEY_PEM_FILE not set — using EPHEMERAL keys; produced evidence will NOT be offline-verifiable (set fixed keys per the pilot runbook).');
+  }
+
   const svc = new EvidenceWriterService({
     store,
-    signer: new DevEd25519Signer({}),     // DEV-anchored (R-01)
-    anchor: new DevRfc3161Provider({}),   // DEV-anchored (R-01)
+    signer: new DevEd25519Signer(signingPem ? { privateKeyPem: signingPem } : {}),   // DEV-anchored (R-01); FIXED key (B6)
+    anchor: new DevRfc3161Provider(tsaPem ? { privateKeyPem: tsaPem } : {}),          // DEV-anchored (R-01); FIXED key (B6)
     dlq: new DlqService({ store: new InMemoryDlqStore(), alarms: new InMemoryDlqAlarmSink() }),
     caps: cfg.caps,
     dbId: cfg.dbId,

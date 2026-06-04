@@ -1,0 +1,15 @@
+{
+  "name": "@edam/pilot-verify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pilot offline-verification tooling (B6+B7): export WORM evidence + publish a trust file from the fixed dev keys + run the verifier-CLI. DEV-anchored (R-01); no production crypto.",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@edam/signing": "*",
+    "@edam/anchoring": "*",
+    "@edam/export": "*",
+    "@edam/verifier-cli": "*",
+    "@edam/worm": "*"
+  }
+}
