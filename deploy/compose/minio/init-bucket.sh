@@ -28,6 +28,21 @@ mc retention set --default COMPLIANCE 365d "local/${BUCKET}" >/dev/null 2>&1 \
   && echo "[minio-init] default COMPLIANCE retention set (365d)" \
   || echo "[minio-init] default retention not set (writer enforces per-object retention; continuing)"
 
+# Render a committed policy with the configured bucket name. The minio/mc image
+# ships no `sed`, so this does a pure-POSIX-sh global replace of the default
+# bucket token (edam-evidence) with ${BUCKET}. A no-op when BUCKET is default.
+render_policy() {
+  src="$1"; dst="$2"; : > "$dst"
+  while IFS= read -r line || [ -n "$line" ]; do
+    rest="$line"; acc=""
+    while [ "${rest#*edam-evidence}" != "$rest" ]; do
+      acc="${acc}${rest%%edam-evidence*}${BUCKET}"
+      rest="${rest#*edam-evidence}"
+    done
+    printf '%s%s\n' "$acc" "$rest" >> "$dst"
+  done < "$src"
+}
+
 # --- Separation of Duties (EDAM-S3-SoD): provision three least-privilege IAM
 #     identities (writer / reader / retention-admin) with distinct policies, so
 #     role separation is enforced by the STORE, not by convention (S-6/S-7).
@@ -38,9 +53,9 @@ provision_role() {
   if [ -z "$user" ] || [ -z "$secret" ]; then
     echo "[minio-init] SoD ${role}: no credentials provided (skipping — set the *_KEY/*_SECRET env)"; return 0
   fi
-  # Patch the bucket name if a non-default bucket is configured.
+  # Patch the bucket name if a non-default bucket is configured (sed-free).
   pf="/tmp/edam-${role}-policy.json"
-  sed "s/edam-evidence/${BUCKET}/g" "$policy_file" > "$pf"
+  render_policy "$policy_file" "$pf"
   mc admin policy create local "edam-${role}" "$pf" >/dev/null 2>&1 \
     && echo "[minio-init] SoD policy edam-${role} created" \
     || echo "[minio-init] SoD policy edam-${role} already exists"
