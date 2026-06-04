@@ -1,0 +1,32 @@
+{
+  "artifact": "edam-p2-hsm-dryrun-result",
+  "generated_at": "2026-06-04T09:36:56.100Z",
+  "algorithm": "ed25519",
+  "mechanism": "CKM_EDDSA",
+  "softhsm": {
+    "manufacturer": "SoftHSM",
+    "library": "Implementation of PKCS11",
+    "version": "2.6"
+  },
+  "key": {
+    "signing_key_id": "edam-hsm-ed25519-387bc2330dd6cb0e",
+    "algorithm": "ed25519",
+    "public_key_spki_b64": "MCowBQYDK2VwAyEAajHg3KUxZSf/Pn5MVFOEkWt6/A4XS76S7JHRvFxI++U="
+  },
+  "sign_and_verify": {
+    "signature_bytes": 64,
+    "verifies": true
+  },
+  "end_to_end": {
+    "trust_published_key_verifies_hsm_signature": true
+  },
+  "non_exportability": {
+    "extractable": false,
+    "sensitive": true,
+    "value_read_denied": true
+  },
+  "fail_closed": {
+    "no_provider": "Pkcs11NotConfiguredError",
+    "algorithm_mismatch": "AlgorithmMismatchError"
+  }
+}
